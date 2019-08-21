@@ -1,15 +1,6 @@
-#include <iostream> 
-#include <algorithm>
-#include <sstream> 
-#include <fstream>
-#include <stdlib.h>
 #include <vector>
 #include <set>
 #include <cassert>
-
-#include "Configuration.hpp"
-#include "Glob.hpp"
-#include "EventGraphModel.hpp"
 
 // Used to parse the configuration file 
 #include "external/nlohmann/json.hpp"
@@ -23,6 +14,12 @@
 #include "boost/serialization/string.hpp"
 #include "boost/filesystem.hpp"
 #include "boost/filesystem/operations.hpp"
+
+// Internal
+#include "Logging.hpp"
+#include "Configuration.hpp"
+#include "Glob.hpp"
+#include "EventGraphModel.hpp"
 
 using json = nlohmann::json; 
 
