@@ -3,8 +3,8 @@
 #include "Configuration.hpp" 
 #include "init_callbacks.hpp"
 #include "finalize_callbacks.hpp"
-//#include "blocking_p2p_callbacks.hpp"
-//#include "nonblocking_p2p_callbacks.hpp"
+#include "blocking_p2p_callbacks.hpp"
+#include "nonblocking_p2p_callbacks.hpp"
 //#include "persistent_p2p_callbacks.hpp"
 //#include "request_mutating_callbacks.hpp"
 //#include "matching_function_callbacks.hpp" 
@@ -26,12 +26,12 @@ void set_callbacks(libundumpi_callbacks* callbacks,
 
   // Toggle on callbacks for all other functions specified in configuration
   for ( auto fn : config.get_mpi_functions() ) {
-    //// Blocking point-to-point communication functions
-    //if      (fn == "MPI_Send")         { callbacks->on_send         = cb_MPI_Send;         }
-    //else if (fn == "MPI_Recv")         { callbacks->on_recv         = cb_MPI_Recv;         }
-    //// Nonblocking point-to-point communication functions
-    //else if (fn == "MPI_Isend")        { callbacks->on_isend        = cb_MPI_Isend;        }
-    //else if (fn == "MPI_Irecv")        { callbacks->on_irecv        = cb_MPI_Irecv;        }
+    // Blocking point-to-point communication functions
+    if      (fn == "MPI_Send")         { callbacks->on_send         = cb_MPI_Send;         }
+    else if (fn == "MPI_Recv")         { callbacks->on_recv         = cb_MPI_Recv;         }
+    // Nonblocking point-to-point communication functions
+    else if (fn == "MPI_Isend")        { callbacks->on_isend        = cb_MPI_Isend;        }
+    else if (fn == "MPI_Irecv")        { callbacks->on_irecv        = cb_MPI_Irecv;        }
     //// Persistent point-to-point communication functions
     //else if (fn == "MPI_Recv_init")    { callbacks->on_recv_init    = cb_MPI_Recv_init;    }
     //else if (fn == "MPI_Send_init")    { callbacks->on_send_init    = cb_MPI_Send_init;    }

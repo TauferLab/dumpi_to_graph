@@ -3,7 +3,7 @@
 
 #include <stdexcept>
 
-// DUMPI-related headers 
+// DUMPI
 #include "dumpi/common/types.h"
 #include "dumpi/libundumpi/callbacks.h" 
 #include "dumpi/libundumpi/libundumpi.h"

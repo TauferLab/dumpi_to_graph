@@ -7,6 +7,8 @@
 #include <set> 
 #include <unordered_map>
 
+// Boost
+#include "boost/serialization/access.hpp"
 #include "boost/serialization/string.hpp" 
 #include "boost/serialization/vector.hpp" 
 #include "boost/serialization/set.hpp" 

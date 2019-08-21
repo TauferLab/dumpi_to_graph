@@ -11,7 +11,7 @@ INCLUDES+= -I/g/g17/chapp1/repos/dumpi_to_graph/include/external/
 INCLUDES+= -I/g/g17/chapp1/repos/sst-dumpi/
 INCLUDES+= -I/g/g17/chapp1/repos/boost_1_67_0/
 
-LDFLAGS= 
+LDFLAGS=
 LD_LIBRARY_FLAGS=
 
 LIBS= -lundumpi 
@@ -29,8 +29,11 @@ SOURCES+= Glob.cpp
 SOURCES+= undumpi_callbacks.cpp
 SOURCES+= init_callbacks.cpp
 SOURCES+= finalize_callbacks.cpp
+SOURCES+= blocking_p2p_callbacks.cpp
+SOURCES+= nonblocking_p2p_callbacks.cpp
 # Trace and event graph representation
 SOURCES+= Trace.cpp
+SOURCES+= Channel.cpp
 # Utilities
 SOURCES+= Utilities.cpp
 
