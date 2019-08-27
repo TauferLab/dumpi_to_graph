@@ -17,10 +17,14 @@
 class Channel {
 public:
   // Constructors 
-  Channel(int src, int dst, int tag, int comm) : 
-    src(src), dst(dst), tag(tag), comm(comm) {} 
   Channel() : 
     src(-1), dst(-1), tag(-1), comm(-1) {}
+  Channel(int dst, int comm) : 
+    src(-1), dst(dst), tag(-1), comm(comm) {} 
+  Channel(int dst, int tag, int comm) : 
+    src(-1), dst(dst), tag(tag), comm(comm) {} 
+  Channel(int src, int dst, int tag, int comm) : 
+    src(src), dst(dst), tag(tag), comm(comm) {} 
   Channel( const Channel& rhs ) : 
     src(rhs.src), dst(rhs.dst), tag(rhs.tag), comm(rhs.comm) {}
   Channel( const int sender_rank, const dumpi_send send_event ) :
@@ -76,6 +80,33 @@ public:
       return true;
     } else {
       return false; 
+    }
+  }
+
+  bool is_wildcard_src()
+  {
+    if (src == -1) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  bool is_wildcard_tag()
+  {
+    if (tag == -1) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  bool is_wildcard_src_and_tag()
+  {
+    if ( this->is_wildcard_src() && this->is_wildcard_tag() ) {
+      return true;
+    } else {
+      return false;
     }
   }
 

@@ -15,6 +15,7 @@
 // Internal
 #include "Configuration.hpp"
 #include "Channel.hpp"
+#include "Event.hpp"
 
 class Trace
 {
@@ -26,7 +27,8 @@ public:
     trace_rank( trace_rank ),
     dumpi_to_graph_rank( dumpi_to_graph_rank )
     {}
- 
+
+  size_t get_next_vertex_id();
   int get_trace_rank();
   int get_dumpi_to_graph_rank();
 
@@ -59,15 +61,22 @@ public:
   void register_event( const dumpi_irecv irecv_event, 
                        const dumpi_time cpu_time,
                        const dumpi_time wall_time );
-
+  
+  // Event registration overloads for blocking matching functions
+  void register_event( const dumpi_waitall waitall_event,
+                       const dumpi_time cpu_time,
+                       const dumpi_time wall_time );
 
 private:
   d2g_Configuration config;
   int trace_rank;
   int dumpi_to_graph_rank;
-  int curr_vertex_id = 0;
-  
+  size_t curr_vertex_id = 0;
+
+  std::vector<Event> event_seq; 
+  std::unordered_map<int, Request> id_to_request;
   std::unordered_map<Channel, std::vector<int>, ChannelHash> channel_to_send_seq;
+  std::unordered_map<Channel, std::vector<int>, ChannelHash> channel_to_recv_seq;
 
 };
 

@@ -34,6 +34,8 @@ SOURCES+= nonblocking_p2p_callbacks.cpp
 # Trace and event graph representation
 SOURCES+= Trace.cpp
 SOURCES+= Channel.cpp
+SOURCES+= Request.cpp
+SOURCES+= Event.cpp
 # Utilities
 SOURCES+= Utilities.cpp
 
