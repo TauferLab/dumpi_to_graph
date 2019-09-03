@@ -15,11 +15,11 @@
 #include "boost/serialization/unordered_map.hpp" 
 #include "boost/filesystem.hpp"
 
-class d2g_Configuration
+class Configuration
 {
 public:
-  d2g_Configuration() {}
-  d2g_Configuration( 
+  Configuration() {}
+  Configuration( 
     const std::set<std::string>& mpi_functions,
     const std::set<std::string>& happens_before_orders,
     const std::set<std::string>& vertex_labels,
@@ -39,20 +39,29 @@ public:
   void compute_trace_file_assignment();
   void set_trace_dirs(std::vector<std::string> trace_dirs);
 
-  d2g_Configuration& operator=(const d2g_Configuration& rhs);
-  // Accessors for assignment operator implementation
+  Configuration& operator=(const Configuration& rhs);
+  
+  // Accessors for graph-building parameters
   std::set<std::string> get_mpi_functions() const;
   std::set<std::string> get_happens_before_orders() const;
   std::set<std::string> get_vertex_labels() const;
   std::set<std::string> get_edge_labels() const;
-  std::vector<std::string> get_trace_dirs() const;
-  std::unordered_map<std::string, std::vector<std::string>> get_trace_files() const;
   bool get_represent_unmatched_tests_flag() const;
   bool get_condense_unmatched_tests_flag() const;
   bool get_condense_matched_tests_flag() const;
   
+  // Accessors for querying trace file to dumpi_to_graph assignment 
+  std::unordered_map<std::string, std::unordered_map<int,std::vector<int>>> get_dir_to_trace_rank_assignments() const;
+  std::unordered_map<std::string, std::unordered_map<int,std::vector<std::string>>> get_dir_to_trace_file_assignments() const;
+  std::vector<std::string> get_trace_dirs() const;
+  std::unordered_map<int, std::vector<std::string>> get_trace_file_assignment(std::string trace_dir) const;
+  std::unordered_map<int, std::vector<int>> get_trace_rank_assignment(std::string trace_dir) const;
+  std::unordered_map<int,int> get_trace_rank_to_owning_rank() const;
+
+  int lookup_owning_rank( int trace_rank ) const;
+
   friend std::ostream& operator<< (std::ostream& out, 
-                                   const d2g_Configuration& config)
+                                   const Configuration& config)
   {
     out << std::endl << "DUMPI-to-Graph Configuration:" << std::endl; 
     out << "Event Graph Options:" << std::endl;
@@ -84,20 +93,20 @@ public:
     for (auto trace_dir : config.trace_dirs) {
       out << "\t- " << trace_dir << std::endl;
     }
-    out << "Assigned Trace Files:" << std::endl;
-    for (auto kvp : config.trace_files) {
-      std::cout << "\t- Trace files for trace dir:" << kvp.first << std::endl;
-      for (auto trace_file : kvp.second) {
-        out << "\t\t- " << trace_file << std::endl;
-      }
-    }
     return out;
   }
 
 private:
+  // Each dumpi_to_graph process will eventually need a global view of which
+  // dumpi_to_graph processes are handling which trace files
+  std::unordered_map<std::string, std::unordered_map<int,std::vector<int>>> dir_to_trace_rank_assignments;
+  std::unordered_map<std::string, std::unordered_map<int,std::vector<std::string>>> dir_to_trace_file_assignments;
+ 
+  std::unordered_map<int,int> trace_rank_to_owning_rank;
+
   // Define data sources for the event graph construction
   std::vector<std::string> trace_dirs;
-  std::unordered_map<std::string, std::vector<std::string> > trace_files;
+  
   // Define what events to represent in the event graph and how to represent 
   // them
   std::set<std::string> mpi_functions;
@@ -128,16 +137,18 @@ private:
     ar & condense_unmatched_tests;
     ar & condense_matched_tests;
     ar & trace_dirs;
-    ar & trace_files;
+    ar & dir_to_trace_rank_assignments;
+    ar & dir_to_trace_file_assignments;
+    ar & trace_rank_to_owning_rank;
   }
   
 };
 
-d2g_Configuration parse_config_file( std::string config_file_path );
+Configuration parse_config_file( std::string config_file_path );
 
-d2g_Configuration parse_args( int argc, char** argv );
+Configuration parse_args( int argc, char** argv );
 
-void broadcast_config( d2g_Configuration& config );
+void broadcast_config( Configuration& config );
 
 
 #endif // D2G_CONFIGURATION_H

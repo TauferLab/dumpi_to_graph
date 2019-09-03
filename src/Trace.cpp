@@ -1,5 +1,7 @@
 #include "Trace.hpp"
 
+#include <cinttypes>
+#include <iostream>
 #include <string>
 #include <vector>
 #include <set>
@@ -14,150 +16,106 @@
 #include "Channel.hpp"
 #include "Request.hpp"
 #include "Event.hpp"
+#include "Debug.hpp"
 
-size_t Trace::get_next_vertex_id() 
+// Helper for updating channel_to_recv_seq and vertex_id_to_channel
+void Trace::register_recv( const Channel& channel, size_t recv_vertex_id )
 {
-  size_t vertex_id = this->curr_vertex_id;
-  this->curr_vertex_id++;
-  return vertex_id;
-} 
-
-int Trace::get_trace_rank()
-{
-  return this->trace_rank;
-}
-
-int Trace::get_dumpi_to_graph_rank()
-{
-  return this->dumpi_to_graph_rank;
-}
-
-void Trace::register_event( const dumpi_init init_event, 
-                            const dumpi_time cpu_time,
-                            const dumpi_time wall_time )
-{
-#ifdef REPORT_PROGRESS
-  int mpi_rc, dumpi_to_graph_rank;
-  mpi_rc = MPI_Comm_rank(MPI_COMM_WORLD, &dumpi_to_graph_rank);
-  if ( dumpi_to_graph_rank == REPORTING_RANK ) {
-    std::cout << "Rank: " << dumpi_to_graph_rank 
-              << " in register_event for MPI_Init" << std::endl;
-  }
-#endif
-  
-  InitEvent event( this->get_next_vertex_id(), cpu_time, wall_time );
-  this->event_seq.push_back( event );
-
-}
-
-void Trace::register_event( const dumpi_init_thread init_thread_event, 
-                            const dumpi_time cpu_time,
-                            const dumpi_time wall_time )
-{
-#ifdef REPORT_PROGRESS
-  int mpi_rc, dumpi_to_graph_rank;
-  mpi_rc = MPI_Comm_rank(MPI_COMM_WORLD, &dumpi_to_graph_rank);
-  if ( dumpi_to_graph_rank == REPORTING_RANK ) {
-    std::cout << "Rank: " << dumpi_to_graph_rank 
-              << " in register_event for MPI_Init_thread" << std::endl;
-  }
-#endif
-}
-
-void Trace::register_event( const dumpi_finalize finalize_event, 
-                            const dumpi_time cpu_time,
-                            const dumpi_time wall_time )
-{
-#ifdef REPORT_PROGRESS
-  int mpi_rc, dumpi_to_graph_rank;
-  mpi_rc = MPI_Comm_rank(MPI_COMM_WORLD, &dumpi_to_graph_rank);
-  if ( dumpi_to_graph_rank == REPORTING_RANK ) {
-    std::cout << "Rank: " << dumpi_to_graph_rank 
-              << " in register_event for MPI_Finalize" << std::endl;
-  }
-#endif
-}
-  
-void Trace::register_event( const dumpi_send send_event, 
-                            const dumpi_time cpu_time,
-                            const dumpi_time wall_time )
-{
-#ifdef REPORT_PROGRESS
-  if ( dumpi_to_graph_rank == REPORTING_RANK ) {
-    std::cout << "dumpi_to_graph_rank: " << this->get_dumpi_to_graph_rank() 
-              << " handling trace_rank: " << this->get_trace_rank()
-              << " in: register_event for MPI_Send" << std::endl;
-  }
-#endif
-  // A send always has enough data to construct its corresponding channel, so we
-  // do this now
-  Channel channel( this->get_trace_rank(), send_event ); 
-  // Register this send in the channel-specific send sequence
-  auto channel_search = this->channel_to_send_seq.find( channel );
-  if (channel_search != this->channel_to_send_seq.end()) {
-    channel_search->second.push_back(0);
+  // First update the sequence of event types
+  this->event_seq.push_back(1);
+  // First update the mapping from channels to sequences of recv vertex IDs
+  auto chan_search = this->channel_to_recv_seq.find( channel );
+  if ( chan_search != this->channel_to_recv_seq.end() ) {
+    chan_search->second.push_back( recv_vertex_id );
   } else {
-    std::vector<int> sends;
-    sends.push_back(0);
-    this->channel_to_send_seq.insert( { channel, sends } );
-  } 
-}
-
-void Trace::register_event( const dumpi_recv recv_event, 
-                            const dumpi_time cpu_time,
-                            const dumpi_time wall_time )
-{
-#ifdef REPORT_PROGRESS
-  if ( dumpi_to_graph_rank == REPORTING_RANK ) {
-    std::cout << "dumpi_to_graph_rank: " << this->get_dumpi_to_graph_rank() 
-              << " handling trace_rank: " << this->get_trace_rank()
-              << " in: register_event for MPI_Recv" << std::endl;
+    std::vector<size_t> vertex_id_seq = { recv_vertex_id };
+    this->channel_to_recv_seq.insert( { channel, vertex_id_seq } );
   }
-#endif
-
-  // Try to construct channel
-  int dst_rank = this->get_trace_rank();
-
-}
-  
-void Trace::register_event( const dumpi_isend isend_event, 
-                            const dumpi_time cpu_time,
-                            const dumpi_time wall_time )
-{
-#ifdef REPORT_PROGRESS
-  if ( dumpi_to_graph_rank == REPORTING_RANK ) {
-    std::cout << "dumpi_to_graph_rank: " << this->get_dumpi_to_graph_rank() 
-              << " handling trace_rank: " << this->get_trace_rank()
-              << " in: register_event for MPI_Isend" << std::endl;
+  // Next update the mapping from vertex IDs to channels
+#ifdef PARANOID_INSERTION
+  auto vid_search = this->vertex_id_to_channel.find( recv_vertex_id );
+  // Vertex has not been assigned a channel yet, all good
+  if ( vid_search == this->vertex_id_to_channel.end() ) {
+    this->vertex_id_to_channel.insert( { recv_vertex_id, channel } );
   }
-#endif
-  // Unpack isend event
-  int request_id = isend_event.request;
-
-  // A send always has enough data to construct its corresponding channel, so we
-  // do this now
-  Channel channel( this->get_trace_rank(), isend_event ); 
-  // Register this send in the channel-specific send sequence
-  auto channel_search = this->channel_to_send_seq.find( channel );
-  if (channel_search != this->channel_to_send_seq.end()) {
-    channel_search->second.push_back(0);
-  } else {
-    std::vector<int> sends;
-    sends.push_back(0);
-    this->channel_to_send_seq.insert( { channel, sends } );
-  } 
-  
-  // Construct an isend request
-  IsendRequest request( request_id, channel );
-  auto request_search = this->id_to_request.find( request_id );
-  // Case 1: Request is not currently tracked so we add it to the map
-  if ( request_search != this->id_to_request.end() ) {
-    this->id_to_request.insert( { request_id, request } );
-  }
-  // Case 2: Request is currently being tracked. In this case, the trace is 
-  // malformed and we should abort
+  // Vertex already has an associated channel... we messed up somewhere
   else {
-    auto prev_request = request_search->second; 
+    std::stringstream ss;
+    ss << "Trying to assign channel: " << channel
+       << " to recv vertex ID: " << recv_vertex_id
+       << " but that ID is already assigned channel: " << vid_search->second
+       << std::endl;
+    throw std::runtime_error( ss.str() );
+  }
+#else
+  this->vertex_id_to_channel.insert( { recv_vertex_id, channel } );
+#endif
+}
+
+// Helper for updating channel_to_send_seq and vertex_id_to_channel
+void Trace::register_send( const Channel& channel, size_t send_vertex_id )
+{
+  // First update the sequence of event types
+  this->event_seq.push_back(0);
+  // Next update the mapping from channels to sequences of send vertex IDs
+  auto search = this->channel_to_send_seq.find( channel );
+  if ( search != this->channel_to_send_seq.end() ) {
+    search->second.push_back( send_vertex_id );
+  } else {
+    std::vector<size_t> vertex_id_seq = { send_vertex_id };
+    this->channel_to_send_seq.insert( { channel, vertex_id_seq } );
+  }
+  // Next update the mapping from vertex IDs to channels
+#ifdef PARANOID_INSERTION
+  auto vid_search = this->vertex_id_to_channel.find( send_vertex_id );
+  // Vertex has not been assigned a channel yet, all good
+  if ( vid_search == this->vertex_id_to_channel.end() ) {
+    this->vertex_id_to_channel.insert( { send_vertex_id, channel } );
+  }
+  // Vertex already has an associated channel... we messed up somewhere
+  else {
+    std::stringstream ss;
+    ss << "Trying to assign channel: " << channel
+       << " to send vertex ID: " << send_vertex_id
+       << " but that ID is already assigned channel: " << vid_search->second
+       << std::endl;
+    throw std::runtime_error( ss.str() );
+  }
+#else
+  this->vertex_id_to_channel.insert( { send_vertex_id, channel } );
+#endif
+}
+
+// Helper for registering init event
+void Trace::register_init() 
+{
+  size_t event_vertex_id = this->get_next_vertex_id();
+  this->event_seq.push_back(2);
+}
+
+// Helper for registering finalize event
+void Trace::register_finalize()
+{
+  size_t event_vertex_id = this->get_next_vertex_id();
+  this->event_seq.push_back(3);
+  this->final_vertex_id = event_vertex_id;
+}
+
+
+
+
+
+// Helper for updating id_to_request
+void Trace::register_request( int request_id, const Request& request )
+{ 
+  auto search = this->id_to_request.find( request_id );
+  // Case 1: Request not already tracked, insert
+  if ( search == this->id_to_request.end() ) {
+    this->id_to_request.insert( { request_id, request } );
+  } 
+  // Case 2: Request already tracked. Error. 
+  else {
+    auto prev_request = search->second; 
     std::stringstream ss;
     ss << "dumpi_to_graph rank: " << this->get_dumpi_to_graph_rank()
        << " trying to map request ID: " << request_id 
@@ -166,34 +124,380 @@ void Trace::register_event( const dumpi_isend isend_event,
        << std::endl;
     throw std::runtime_error( ss.str() );
   }
-
 }
 
-void Trace::register_event( const dumpi_irecv irecv_event, 
-                            const dumpi_time cpu_time,
-                            const dumpi_time wall_time )
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+
+Channel Trace::determine_channel_of_recv( const dumpi_recv recv )
 {
-#ifdef REPORT_PROGRESS
-  if ( dumpi_to_graph_rank == REPORTING_RANK ) {
-    std::cout << "dumpi_to_graph_rank: " << this->get_dumpi_to_graph_rank() 
-              << " handling trace_rank: " << this->get_trace_rank()
-              << " in: register_event for MPI_Irecv" << std::endl;
+  // Destination is just this trace rank and comm is guaranteed to be in recv
+  Channel partial_channel( this->get_trace_rank(), recv.comm );
+  // If either of the source or tag are available from the recv (i.e., it is not
+  // a wildcard receive) then update the channel 
+  if ( recv.source != DUMPI_ANY_SOURCE ) {
+    partial_channel.set_src( recv.source ); 
+  } 
+  if ( recv.tag != DUMPI_ANY_TAG ) {
+    partial_channel.set_tag( recv.tag );
   }
-#endif
-  // Unpack irecv event
-  int request_id = irecv_event.request;
+  // If the channel is complete, just return it, otherwise we need to look at
+  // the recv's status
+  if ( partial_channel.is_complete() ) {
+    return partial_channel;
+  } 
+  else {
+    dumpi_status* status_ptr = recv.status;
+    // Status wasn't ignored, we can recover the source and tag
+    if ( status_ptr != nullptr && status_ptr != DUMPI_STATUS_IGNORE ) {
+      dumpi_status status = *status_ptr;
+      partial_channel.set_src( status.source );
+      partial_channel.set_tag( status.tag );
+      return partial_channel;
+    }
+    // Status was ignored, can't unambiguously determine message matching
+    else {
+      std::stringstream ss;
+      ss << "Attempting to determine channel of receive, but status was ignored" 
+         << std::endl;
+      throw std::runtime_error( ss.str() );
+    }
+  }
 }
 
-void Trace::register_event( const dumpi_waitall waitall_event,
-                            const dumpi_time cpu_time,
-                            const dumpi_time wall_time ) 
+Channel Trace::determine_channel_of_irecv( const Request& request, 
+                                           const dumpi_status* status )
 {
-#ifdef REPORT_PROGRESS
-  if ( dumpi_to_graph_rank == REPORTING_RANK ) {
-    std::cout << "dumpi_to_graph_rank: " << this->get_dumpi_to_graph_rank() 
-              << " handling trace_rank: " << this->get_trace_rank()
-              << " in: register_event for MPI_Waitall" << std::endl;
+  // Check if we can just look up the channel from the request
+  if ( request.get_channel().is_complete() ) {
+    return request.get_channel();
   }
-#endif
+  // If not, try to complete the channel from the additional information in the
+  // status
+  else {
+    // Check nullity of status pointer
+    if ( status != nullptr ) {
+      // Check whether status was ignored
+      if ( status != DUMPI_STATUS_IGNORE ) {
+        Channel partial_channel = request.get_channel();
+        int sender_rank = status->source;
+        int message_tag = status->tag;
+        Channel complete_channel( sender_rank,
+                                  partial_channel.get_dst(),
+                                  message_tag,
+                                  partial_channel.get_comm() );
+        return complete_channel;
+      }
+      else {
+        std::stringstream ss;
+        ss << "Attempting to determine channel of receive, but status was ignored" 
+           << std::endl;
+        throw std::runtime_error( ss.str() );
+      }
+    }
+    else {
+      std::stringstream ss;
+      ss << "Attempting to determine channel of receive, but status is null" 
+         << std::endl;
+      throw std::runtime_error( ss.str() );
+    }
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void Trace::cancel_request( int request_id )
+{
+  auto search = this->id_to_request.find( request_id );
+  if ( search != this->id_to_request.end() ) {
+    search->second.cancel();
+  } else {
+    std::stringstream ss;
+    ss << "Rank: " << this->get_dumpi_to_graph_rank() 
+       << " trying to cancel request ID: " << request_id
+       << " but that request ID is not in id_to_request" << std::endl;
+    throw std::runtime_error( ss.str() );
+  }
+}
+
+void Trace::free_request( int request_id )
+{
+  auto search = this->id_to_request.find( request_id );
+  if ( search != this->id_to_request.end() ) {
+    this->id_to_request.erase( search->first );
+  } else {
+    std::stringstream ss;
+    ss << "Rank: " << this->get_dumpi_to_graph_rank() 
+       << " trying to free/remove request ID: " << request_id
+       << " but that request ID is not in id_to_request" << std::endl;
+    throw std::runtime_error( ss.str() );
+  }
+}
+
+void Trace::complete_request( int request_id,
+                              const dumpi_status* status_ptr,
+                              const dumpi_time cpu_time,
+                              const dumpi_time wall_time ) 
+{
+  // Generally speaking, a class of MPI functions called "matching functions"
+  // are called to try to complete requests. Requests may be generated by 
+  // non-blocking point-to-point communication functions like MPI_Irecv or 
+  // MPI_Isend, non-blocking one-sided communication functions like MPI_Rput or
+  // MPI_Rget, and various others. The outcomes of handling these requests are
+  // modeled differently in the event graph, so the first thing we have to do
+  // is look up what kind of request we are dealing with.
+  auto request_search = this->id_to_request.find( request_id );
+  int request_type;
+  Request request;
+  // Case 1: Request is currently tracked, so we can get its type and proceed
+  if ( request_search != this->id_to_request.end() ) {
+    request = request_search->second;
+    request_type = request.get_type();
+  } 
+  // Case 2: Request is not currently tracked. It was either not added in the
+  // appropriate callback, or the trace is malformed. Either way, we have to 
+  // abort. 
+  else {
+    std::stringstream ss;
+    ss << "Tried to handle request corresponding to request ID: " 
+       << request_id << " but no such request exists." << std::endl;
+    std::cerr << "Current id_to_request map is:" << std::endl;
+    this->report_id_to_request();
+    throw std::runtime_error( ss.str() );
+  }
+
+  // Now that we know what kind of request we are handling, call the appropriate
+  // specialized request completion handler.
+  // Case 1: request_type == 0 --> MPI_Isend
+  if ( request_type == 0 ) {
+    complete_isend_request( request );
+  }
+  // Case 2: request_type == 1 --> MPI_Irecv
+  else if ( request_type == 1 ) {
+    complete_irecv_request( request, status_ptr, cpu_time, wall_time );
+  }
+  // Case 3+: FIXME: We don't handle persistent communication requests or 
+  // one-sided communication just yet
+  else {
+    std::stringstream ss;
+    ss << "Handling completion of persistent communication requests and "
+       << "one-sided communication requests is not implemented yet." << std::endl;
+    throw std::runtime_error( ss.str() );
+  }
+
+  // No matter what kind of request we are handling, once it is handled it must
+  // be removed from the id_to_request map.
+  this->id_to_request.erase( request_id );
+}
+
+void Trace::complete_isend_request( Request request )
+{
+  // FIXME: Actually, this is not so much a FIXME as it is a WARNING
+  // We don't explicitly represent isend request completions with vertices, but
+  // we *do* bail on any trace involving cancelled isends because cancelling 
+  // isends is pure evil and we cannot guarantee an accurate event graph in the
+  // presence of that sort of heresy (seriously, look up what the standard says
+  // about cancelling isends and tell me that you can be *absolutely* sure what
+  // actually happened given the information in a DUMPI tracefile)
+  if ( request.is_cancelled() ) {
+    std::stringstream ss;
+    ss << "Cancelled isend present in trace. Aborting." << std::endl;
+    throw std::runtime_error( ss.str() );
+  }
+}
+
+void Trace::complete_irecv_request( Request request,
+                                    const dumpi_status* status_ptr,
+                                    const dumpi_time cpu_time,
+                                    const dumpi_time wall_time )
+{
+  // FIXME: We basically assume that cancelled irecv requests are always 
+  // effectively cancelled and thus should not be represented by a recv vertex
+  // in the event graph, even though the standard just says that they're 
+  // either cancelled or complete normally. SUPER HELPFUL. 
+  if ( !request.is_cancelled() ) {
+    // Determine the channel in which this receive occurs
+    Channel channel = this->determine_channel_of_irecv( request, 
+                                                        status_ptr );
+    // Create a recv event
+    size_t event_vertex_id = this->get_next_vertex_id();
+    this->register_recv( channel, event_vertex_id );
+  }
+}
+
+void Trace::apply_vertex_id_offset( size_t offset ) 
+{
+  this->vertex_id_offset = offset;
+  this->initial_vertex_id += offset;
+  this->final_vertex_id += offset;
+  // Update the mapping from vertex IDs to channelsS
+  std::unordered_map<size_t,Channel> new_vertex_id_to_channel;
+  for ( auto kvp : this->vertex_id_to_channel ) {
+    size_t old_vertex_id = kvp.first;
+    size_t new_vertex_id = old_vertex_id + offset;
+    Channel channel = kvp.second;
+    new_vertex_id_to_channel.insert( { new_vertex_id, channel } );
+  }
+  this->vertex_id_to_channel = new_vertex_id_to_channel;
+  // Update mapping from channels to sequences of vertex IDs representing sends
+  for ( auto kvp : this->channel_to_send_seq ) {
+    std::vector<size_t> new_vertex_ids;
+    for ( int i=0; i<kvp.second.size(); ++i ) {
+      new_vertex_ids.push_back( kvp.second[i] + offset );
+    }
+    this->channel_to_send_seq[ kvp.first ] = new_vertex_ids;
+  }
+  // Update mapping from channels to sequences of vertex IDs representing recvs
+  for ( auto kvp : this->channel_to_recv_seq ) {
+    std::vector<size_t> new_vertex_ids;
+    for ( int i=0; i<kvp.second.size(); ++i ) {
+      new_vertex_ids.push_back( kvp.second[i] + offset );
+    }
+    this->channel_to_recv_seq[ kvp.first ] = new_vertex_ids;
+  }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////// Dumb Getters //////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+// Just gets the current vertex ID that's up for assignment without incrementing
+// it
+size_t Trace::get_curr_vertex_id() const 
+{
+  return this->curr_vertex_id;
+}
+
+// Returns the next vertex ID to assign to an event and increments the current
+// vertex ID
+size_t Trace::get_next_vertex_id() 
+{
+  size_t vertex_id = this->curr_vertex_id;
+  this->curr_vertex_id++;
+  return vertex_id;
+} 
+
+size_t Trace::get_initial_vertex_id() const
+{
+  return this->initial_vertex_id;
+}
   
+size_t Trace::get_final_vertex_id() const
+{
+  return this->final_vertex_id;
+}
+
+// Returns the directory (effectively, the set of trace files representing a 
+// single execution) of which the trace file that this Trace object represents
+// is a member
+std::string Trace::get_trace_dir() const  
+{
+  return this->trace_dir;
+}
+
+// Returns the MPI rank of the application process that generated the trace file
+// that this Trace object represents
+int Trace::get_trace_rank() const
+{
+  return this->trace_rank;
+}
+
+// Returns the MPI rank of the dumpi_to_graph process handling the trace file 
+// that this Trace object represents
+int Trace::get_dumpi_to_graph_rank() const
+{
+  return this->dumpi_to_graph_rank;
+}
+
+// Returns the sequence of event types
+std::vector<uint8_t> Trace::get_event_seq() const
+{
+  return this->event_seq;
+}
+
+// Returns the mapping from vertex IDs to channels
+std::unordered_map<size_t,Channel> Trace::get_vertex_id_to_channel() const
+{
+  return this->vertex_id_to_channel;
+}
+
+// Returns the mapping between channels having this trace process as the 
+// receiver and the sequence of vertex IDs representing those receives
+channel_map Trace::get_channel_to_recv_seq() const
+{
+  return this->channel_to_recv_seq;
+}
+
+// Returns the mapping between channels having this trace process as the sender
+// and the sequence of vertex IDs representing those sends
+channel_map Trace::get_channel_to_send_seq() const
+{
+  return this->channel_to_send_seq;
+}
+
+std::unordered_map<int,Request> Trace::get_id_to_request() const
+{
+  return this->id_to_request;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/////////// Convenience functions for printing the state of a Trace ////////////
+////////////////////////////////////////////////////////////////////////////////
+
+void Trace::report_event_seq()
+{
+  std::unordered_map<uint8_t, std::string> type_to_name =
+  {
+    {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}
+  };
+  std::cout << "Event sequence for trace rank: " 
+            << this->get_trace_rank() << std::endl;
+  int n_events = this->event_seq.size();
+  std::cout << "Number of events: " << n_events << std::endl;
+  std::cout << "Current Vertex ID value: " << this->get_curr_vertex_id() << std::endl;
+  for ( int i=0; i<n_events; ++i ) {
+    std::cout << "Vertex ID: " << i + this->vertex_id_offset
+              << ", Type: " << type_to_name.at( this->event_seq[i] ) 
+              << std::endl;
+  }
+}
+
+void Trace::report_channel_to_send_seq()
+{
+  std::cout << "Channel to send sequence map for trace rank: " 
+            << this->get_trace_rank() << std::endl;
+  for ( auto kvp : this->channel_to_send_seq ) {
+    std::cout << "Channel: " << kvp.first << ", Send Vertex IDs: ";
+    for ( auto send : kvp.second ) {
+      std::cout << " " << send;
+    }
+    std::cout << std::endl;
+  }
+}
+
+void Trace::report_channel_to_recv_seq()
+{
+  std::cout << "Channel to recv sequence map for trace rank: " 
+            << this->get_trace_rank() << std::endl;
+  for ( auto kvp : this->channel_to_recv_seq ) {
+    std::cout << "Channel: " << kvp.first << ", Recv Vertex IDs: ";
+    for ( auto recv : kvp.second ) {
+      std::cout << " " << recv;
+    }
+    std::cout << std::endl;
+  }
+}
+
+void Trace::report_id_to_request()
+{
+  std::cout << "Request ID to request map for trace rank: " 
+            << this->get_trace_rank() <<std::endl;
+  for ( auto kvp : this->id_to_request ) {
+    std::cout << "Request ID: " << kvp.first 
+              << " Request Object: " << kvp.second << std::endl;
+  }
 }

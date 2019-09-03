@@ -16,6 +16,7 @@
 #include "boost/filesystem/operations.hpp"
 
 // Internal
+#include "Utilities.hpp"
 #include "Logging.hpp"
 #include "Configuration.hpp"
 #include "Glob.hpp"
@@ -25,10 +26,10 @@ using json = nlohmann::json;
 
 /* Top-level function to 
  */
-d2g_Configuration parse_args(int argc, char** argv) 
+Configuration parse_args(int argc, char** argv) 
 {
   // First parse the configuration file itself
-  d2g_Configuration base_config = parse_config_file( argv[1] );
+  Configuration base_config = parse_config_file( argv[1] );
   // Next, parse all of the provided input directories of trace files
   std::vector<std::string> trace_dirs;
   for (int i=2; i<argc; ++i) {
@@ -41,7 +42,7 @@ d2g_Configuration parse_args(int argc, char** argv)
   return base_config;
 }
 
-d2g_Configuration parse_config_file( std::string config_file_path )
+Configuration parse_config_file( std::string config_file_path )
 {
   // Parse the JSON configuration file
   json config_json;
@@ -84,7 +85,7 @@ d2g_Configuration parse_config_file( std::string config_file_path )
     }
   }
   // Construct the configuration 
-  d2g_Configuration config( mpi_functions,
+  Configuration config( mpi_functions,
                             happens_before_orders,
                             vertex_labels,
                             edge_labels,
@@ -94,52 +95,67 @@ d2g_Configuration parse_config_file( std::string config_file_path )
   return config; 
 }
 
-std::set<std::string> d2g_Configuration::get_mpi_functions() const
+std::set<std::string> Configuration::get_mpi_functions() const
 {
   return this->mpi_functions;
 }
 
-std::set<std::string> d2g_Configuration::get_happens_before_orders() const
+std::set<std::string> Configuration::get_happens_before_orders() const
 {
   return this->happens_before_orders;
 }
 
-std::set<std::string> d2g_Configuration::get_vertex_labels() const
+std::set<std::string> Configuration::get_vertex_labels() const
 {
   return this->vertex_labels;
 }
 
-std::set<std::string> d2g_Configuration::get_edge_labels() const
+std::set<std::string> Configuration::get_edge_labels() const
 {
   return this->edge_labels;
 }
 
-std::vector<std::string> d2g_Configuration::get_trace_dirs() const
+std::vector<std::string> Configuration::get_trace_dirs() const
 {
   return this->trace_dirs;
 }
 
-std::unordered_map<std::string,std::vector<std::string> > d2g_Configuration::get_trace_files() const
+std::unordered_map<std::string, std::unordered_map<int,std::vector<int>>> Configuration::get_dir_to_trace_rank_assignments() const
 {
-  return this->trace_files;
+  return this->dir_to_trace_rank_assignments;
 }
 
-bool d2g_Configuration::get_represent_unmatched_tests_flag() const
+std::unordered_map<std::string, std::unordered_map<int,std::vector<std::string>>> Configuration::get_dir_to_trace_file_assignments() const
+{
+  return this->dir_to_trace_file_assignments;
+}
+
+std::unordered_map<int,std::vector<std::string> > Configuration::get_trace_file_assignment( std::string trace_dir ) const
+{
+  return this->dir_to_trace_file_assignments.at( trace_dir );
+}
+
+std::unordered_map<int,std::vector<int> > Configuration::get_trace_rank_assignment( std::string trace_dir ) const
+{
+  return this->dir_to_trace_rank_assignments.at( trace_dir );
+}
+
+bool Configuration::get_represent_unmatched_tests_flag() const
 {
   return this->represent_unmatched_tests;
 }
 
-bool d2g_Configuration::get_condense_unmatched_tests_flag() const
+bool Configuration::get_condense_unmatched_tests_flag() const
 {
   return this->condense_unmatched_tests;
 }
 
-bool d2g_Configuration::get_condense_matched_tests_flag() const
+bool Configuration::get_condense_matched_tests_flag() const
 {
   return this->condense_matched_tests;
 }
 
-d2g_Configuration& d2g_Configuration::operator=(const d2g_Configuration& rhs)
+Configuration& Configuration::operator=(const Configuration& rhs)
 {
   if (&rhs == this) {
     return *this;
@@ -152,16 +168,19 @@ d2g_Configuration& d2g_Configuration::operator=(const d2g_Configuration& rhs)
   this->condense_unmatched_tests = rhs.get_condense_unmatched_tests_flag();
   this->condense_matched_tests = rhs.get_condense_matched_tests_flag();
   this->trace_dirs = rhs.get_trace_dirs();
-  this->trace_files = rhs.get_trace_files();
+  //this->trace_files = rhs.get_trace_files();
+  this->dir_to_trace_file_assignments = rhs.get_dir_to_trace_file_assignments();
+  this->dir_to_trace_rank_assignments = rhs.get_dir_to_trace_rank_assignments();
+  this->trace_rank_to_owning_rank = rhs.get_trace_rank_to_owning_rank();
   return *this; 
 }
 
-void d2g_Configuration::set_trace_dirs(std::vector<std::string> trace_dirs) 
+void Configuration::set_trace_dirs(std::vector<std::string> trace_dirs) 
 {
   this->trace_dirs = trace_dirs;
 }
 
-void broadcast_config( d2g_Configuration& config )
+void broadcast_config( Configuration& config )
 {
   boost::mpi::communicator world;
   int rank = world.rank();
@@ -179,26 +198,101 @@ void broadcast_config( d2g_Configuration& config )
   }
 }
 
-void d2g_Configuration::compute_trace_file_assignment()
+void Configuration::compute_trace_file_assignment()
 {
   assert(this->trace_dirs.size() > 0);
+  
   boost::mpi::communicator world;
   int n_procs = world.size();
   int rank = world.rank();
+
+  // Iterate over the trace file directories we're handling in this run
   for (auto trace_dir : this->trace_dirs) {
+
+    // Specify the pattern glob will use to match against the DUMPI traces in 
+    // the current directory
     std::string trace_file_pattern = trace_dir + "/dumpi-*.bin";
+
+    // Glob for the DUMPI traces in the current directory
     std::vector<std::string> curr_trace_files = glob(trace_file_pattern);
     int n_trace_files = curr_trace_files.size();
-    std::vector<std::string> assigned_trace_files;
+  
+    //std::vector<std::string> assigned_trace_files;
+    std::unordered_map<int, std::vector<int>> trace_rank_assignments;
+    std::unordered_map<int, std::vector<std::string>> trace_file_assignments;
+    
+    int assigned_rank, trace_rank;
+    std::string trace_file;
     for ( int i=0; i<n_trace_files; ++i ) {
-      if ( i % n_procs == rank ) {
-        // Canonicalize path
-        boost::filesystem::path trace_file_path( curr_trace_files[i] );
-        boost::filesystem::path trace_file_canonical_path = boost::filesystem::canonical( trace_file_path );
-        assigned_trace_files.push_back( trace_file_canonical_path.string() );
+      
+      // Canonicalize path of trace file
+      boost::filesystem::path trace_file_path( curr_trace_files[i] );
+      boost::filesystem::path trace_file_canonical_path = boost::filesystem::canonical( trace_file_path );
+      trace_file = trace_file_canonical_path.string();
+      
+      // Determine rank of trace file
+      trace_rank = trace_file_to_rank( trace_file );
+
+      // Determine dumpi_to_graph rank this trace file will be assigned to
+      assigned_rank = i % n_procs;
+
+      // Update trace_rank_to_owning_rank
+      trace_rank_to_owning_rank.insert( { trace_rank, assigned_rank } );
+
+      auto rank_search = trace_rank_assignments.find( assigned_rank );
+      if ( rank_search != trace_rank_assignments.end() ) {
+        rank_search->second.push_back( trace_rank );
+      } else {
+        std::vector<int> trace_ranks = { trace_rank };
+        trace_rank_assignments.insert( { assigned_rank, trace_ranks } );
+      }
+
+      auto file_search = trace_file_assignments.find( assigned_rank );
+      if ( file_search != trace_file_assignments.end() ) {
+        file_search->second.push_back( trace_file );
+      } else {
+        std::vector<std::string> trace_files = { trace_file };
+        trace_file_assignments.insert( { assigned_rank, trace_files } );
       }
     }
-    this->trace_files.insert( { trace_dir, assigned_trace_files } );
+
+    // Now that we have the trace file and trace rank assignments for this dir
+    this->dir_to_trace_rank_assignments.insert( { trace_dir, trace_rank_assignments } );
+    this->dir_to_trace_file_assignments.insert( { trace_dir, trace_file_assignments } );
+    
   }
+
+
+  for ( auto kvp : this->dir_to_trace_rank_assignments ) {
+    std::cout << "For trace directory: " << kvp.first << " we have rank assignments: " << std::endl;
+    for ( auto kvp2 : kvp.second ) {
+      std::cout << "Trace ranks assigned to dumpi_to_graph rank: " << kvp2.first << ": ";
+      for ( auto rank : kvp2.second ) {
+        std::cout << rank << " ";
+      }
+      std::cout << std::endl;
+    }
+  }
+  for ( auto kvp : this->dir_to_trace_file_assignments ) {
+    std::cout << "For trace directory: " << kvp.first << " we have file assignments: " << std::endl;
+    for ( auto kvp2 : kvp.second ) {
+      std::cout << "Trace files assigned to dumpi_to_graph rank: " << kvp2.first << ": ";
+      for ( auto file : kvp2.second ) {
+        std::cout << file << " ";
+      }
+      std::cout << std::endl;
+    }
+  }
+
+}
+
+std::unordered_map<int,int> Configuration::get_trace_rank_to_owning_rank() const
+{
+  return this->trace_rank_to_owning_rank;
+}
+
+int Configuration::lookup_owning_rank( int trace_rank ) const
+{
+  return this->trace_rank_to_owning_rank.at( trace_rank ); 
 }
 

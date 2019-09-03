@@ -5,7 +5,7 @@
 #include "Configuration.hpp" 
 
 void set_callbacks(libundumpi_callbacks* callbacks, 
-                   d2g_Configuration config);
+                   Configuration config);
 
 #endif // UNDUMPI_CALLBACKS_H
 

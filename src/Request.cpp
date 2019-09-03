@@ -3,49 +3,74 @@
 // Internal
 #include "Channel.hpp"
 
+Request::Request( int type, int id )
+{
+  this->type = type;
+  this->id = id;
+  if ( type == 0 || type == 1 ) {
+    this->active = true;
+  } else {
+    this->active = false;
+  }
+  // If the full channel associated with this request is not available at the 
+  // time of construction (e.g., when constructing the request for a wildcard
+  // MPI_Irecv) default contruct a channel anyway
+  this->channel = Channel(); 
+}
+
+Request::Request( int type, int id, const Channel& channel )
+{
+  this->type = type;
+  this->id = id;
+  if ( type == 0 || type == 1 ) {
+    this->active = true;
+  } else {
+    this->active = false;
+  }
+  this->channel = channel;
+}
+
+int Request::get_type() const
+{
+  return this->type;
+}
+
 int Request::get_id() const
 {
   return this->id;
 }
 
-const Channel& NonblockingCommunicationRequest::get_channel() const
+Channel Request::get_channel() const
 {
   return this->channel;
 }
 
-bool NonblockingCommunicationRequest::is_cancelled() const
+void Request::set_channel( const Channel& channel )
+{
+  this->channel = channel;
+}
+
+bool Request::is_active() const
+{
+  return this->active;
+}
+
+bool Request::is_cancelled() const
 {
   return this->cancelled;
 }
 
-void NonblockingCommunicationRequest::cancel() 
+void Request::activate() 
+{
+  this->active = true;
+}
+
+void Request::deactivate()
+{
+  this->active = false;
+}
+
+void Request::cancel()
 {
   this->cancelled = true;
 }
-
-//#include <string>
-
-//// Helper function for outputting request type
-//std::string request_properties::RequestType_to_string(RequestType type)
-//{
-//  std::string s; 
-//  switch( (int)type ) {
-//    case 0: s = "irecv"; break;
-//    case 1: s = "isend"; break;
-//    case 2: s = "recv_init"; break;
-//    case 3: s = "send_init"; break;
-//  }
-//  return s;
-//}
-//
-//// Helper function for outputting request state
-//std::string request_properties::RequestState_to_string(RequestState state)
-//{
-//  std::string s; 
-//  switch( (int)state ) {
-//    case 0: s = "active"; break;
-//    case 1: s = "inactive"; break;
-//    case 2: s = "cancelled"; break;
-//  }
-//  return s;
-//}

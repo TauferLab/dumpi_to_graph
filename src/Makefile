@@ -31,13 +31,17 @@ SOURCES+= init_callbacks.cpp
 SOURCES+= finalize_callbacks.cpp
 SOURCES+= blocking_p2p_callbacks.cpp
 SOURCES+= nonblocking_p2p_callbacks.cpp
+SOURCES+= matching_function_callbacks.cpp
+SOURCES+= request_mutating_callbacks.cpp
 # Trace and event graph representation
 SOURCES+= Trace.cpp
 SOURCES+= Channel.cpp
 SOURCES+= Request.cpp
 SOURCES+= Event.cpp
+SOURCES+= EventGraph.cpp
 # Utilities
 SOURCES+= Utilities.cpp
+SOURCES+= Debug.cpp
 
 OBJECTS=$(SOURCES:.cpp=.o)
 

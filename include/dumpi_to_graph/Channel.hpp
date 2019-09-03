@@ -5,6 +5,7 @@
 #include <functional>
 #include <vector> 
 #include <iostream> 
+#include <unordered_map>
 
 // DUMPI
 #include "dumpi/common/argtypes.h"
@@ -12,6 +13,7 @@
 // Boost
 #include "boost/functional/hash.hpp"
 #include "boost/serialization/access.hpp"
+
 
 
 class Channel {
@@ -43,6 +45,11 @@ public:
   int get_dst() const;
   int get_tag() const;
   int get_comm() const;
+
+  void set_src( int src );
+  void set_dst( int dst );
+  void set_tag( int tag );
+  void set_comm( int comm );
 
   // Operators
   Channel operator=(const Channel& rhs) 
@@ -148,5 +155,6 @@ struct ChannelHash {
   }
 };
 
+using channel_map = std::unordered_map<Channel, std::vector<size_t>, ChannelHash>;
 
 #endif // D2G_CHANNEL_H   

@@ -14,19 +14,18 @@ int cb_MPI_Init(const dumpi_init *prm,
                 const dumpi_perfinfo *perf, 
                 void *uarg) 
 {
-  if ( validate_dumpi_event(prm, cpu, wall, perf) ) {
-    // Get pointer to trace object in which this event will be represented
-    Trace* trace = (Trace*) uarg;
-    // Get DUMPI event data
-    dumpi_init event = *prm;
-    dumpi_time cpu_time = *cpu;
-    dumpi_time wall_time = *wall;
-    // Construct event representation in Trace
-    trace->register_event(event, cpu_time, wall_time);
-    return 0;
-  } else {
-    return -1;
-  }
+  // Check that event data is OK
+  validate_dumpi_event(prm, cpu, wall, perf);
+  Trace* trace = (Trace*) uarg;
+  dumpi_init event = *prm;
+  dumpi_time cpu_time = *cpu;
+  dumpi_time wall_time = *wall;
+  
+  // Add the event to the event sequence for this trace  
+  trace->register_init();
+  
+  // Return OK
+  return 0;
 }
 
 int cb_MPI_Init_thread(const dumpi_init_thread *prm, 
@@ -36,17 +35,16 @@ int cb_MPI_Init_thread(const dumpi_init_thread *prm,
                        const dumpi_perfinfo *perf, 
                        void *uarg) 
 {
-  if ( validate_dumpi_event(prm, cpu, wall, perf) ) {
-    // Get pointer to trace object in which this event will be represented
-    Trace* trace = (Trace*) uarg;
-    // Get DUMPI event data
-    dumpi_init_thread event = *prm;
-    dumpi_time cpu_time = *cpu;
-    dumpi_time wall_time = *wall;
-    // Construct event representation in Trace
-    trace->register_event(event, cpu_time, wall_time);
-    return 0;
-  } else {
-    return -1;
-  }
+  // Check that event data is OK
+  validate_dumpi_event(prm, cpu, wall, perf);
+  Trace* trace = (Trace*) uarg;
+  dumpi_init_thread event = *prm;
+  dumpi_time cpu_time = *cpu;
+  dumpi_time wall_time = *wall;
+  
+  // Add the event to the event sequence for this trace  
+  trace->register_init();
+  
+  // Return OK
+  return 0;
 }

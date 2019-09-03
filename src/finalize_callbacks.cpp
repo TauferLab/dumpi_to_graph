@@ -14,19 +14,19 @@ int cb_MPI_Finalize(const dumpi_finalize *prm,
                     const dumpi_perfinfo *perf, 
                     void *uarg) 
 {
-  if ( validate_dumpi_event(prm, cpu, wall, perf) ) {
-    // Get pointer to trace object in which this event will be represented
-    Trace* trace = (Trace*) uarg;
-    // Get DUMPI event data
-    dumpi_finalize event = *prm;
-    dumpi_time cpu_time = *cpu;
-    dumpi_time wall_time = *wall;
-    // Construct event representation in Trace
-    trace->register_event(event, cpu_time, wall_time);
-    (void)prm;
-    return 0;
-  } else {
-    return -1;
-  }
+  // Check that event data is OK
+  validate_dumpi_event(prm, cpu, wall, perf);
+  Trace* trace = (Trace*) uarg;
+  dumpi_finalize event = *prm;
+  dumpi_time cpu_time = *cpu;
+  dumpi_time wall_time = *wall;
+  
+  // Add the event to the event sequence for this trace  
+  trace->register_finalize();
+  
+  (void)uarg;
+  
+  // Return OK
+  return 0;
 }
 

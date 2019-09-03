@@ -13,4 +13,6 @@
 #define REPORT_PROGRESS
 #define REPORTING_RANK 0
 
+#define REPORT_TIMINGS
+
 #endif // D2G_LOGGING
