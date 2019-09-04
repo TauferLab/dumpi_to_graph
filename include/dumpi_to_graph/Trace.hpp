@@ -38,6 +38,7 @@ public:
   int get_dumpi_to_graph_rank() const;
   size_t get_initial_vertex_id() const;
   size_t get_final_vertex_id() const;
+  size_t get_vertex_id_offset() const;
   std::vector<uint8_t> get_event_seq() const;
   std::unordered_map<size_t,Channel> get_vertex_id_to_channel() const;
 

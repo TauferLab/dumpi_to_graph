@@ -5,6 +5,7 @@
 #include <utility> // make_pair
 #include <algorithm> // max
 #include <cstdint>
+#include <climits>
 #include <cinttypes>
 #include <unordered_map>
 #include <vector>
@@ -12,6 +13,21 @@
 
 #include "boost/serialization/unordered_map.hpp" 
 #include "boost/mpi.hpp"
+
+// Super gross workaround for using size_t for scalar logical clock
+#if SIZE_MAX == UCHAR_MAX
+   #define my_MPI_SIZE_T MPI_UNSIGNED_CHAR
+#elif SIZE_MAX == USHRT_MAX
+   #define my_MPI_SIZE_T MPI_UNSIGNED_SHORT
+#elif SIZE_MAX == UINT_MAX
+   #define my_MPI_SIZE_T MPI_UNSIGNED
+#elif SIZE_MAX == ULONG_MAX
+   #define my_MPI_SIZE_T MPI_UNSIGNED_LONG
+#elif SIZE_MAX == ULLONG_MAX
+   #define my_MPI_SIZE_T MPI_UNSIGNED_LONG_LONG
+#else
+   #error "Could not determine right MPI datatype for size_t"
+#endif
 
 #include "Debug.hpp"
 
@@ -392,6 +408,11 @@ void EventGraph::make_collective_edges()
 // Note: We default to a "ticking policy" that always increments by 1
 void EventGraph::apply_scalar_logical_clock()
 {
+  std::unordered_map<uint8_t, std::string> type_to_name =
+  {
+    {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}
+  };
+
   int mpi_rc, rank;
   mpi_rc = MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   int initial_lts = 0; 
@@ -402,12 +423,139 @@ void EventGraph::apply_scalar_logical_clock()
   for ( auto kvp : this->rank_to_trace ) {
     auto event_seq = kvp.second->get_event_seq();
     size_t n_vertices = event_seq.size();
+    size_t vertex_id_offset = kvp.second->get_vertex_id_offset();
+    std::cout << "Rank: " << rank
+              << " handling trace rank: " << kvp.first
+              << " with event sequence of length: " << n_vertices
+              << " and vertex ID offset: " << vertex_id_offset
+              << std::endl;
     for ( int i=0; i<n_vertices; ++i ) {
       auto event_type = event_seq[i];
+      size_t vertex_id = i + vertex_id_offset;
+
+      //std::cout << "Rank: " << rank 
+      //          << " handling trace rank: " << kvp.first
+      //          << " assigning LTS to vertex: " << vertex_id
+      //          << " with event type: " << type_to_name.at( event_type )
+      //          << std::endl;
+
+      // Case 1: Init events always get the initial logical time stamp
       if ( event_type == 2 ) {
+#ifdef PARANOID_INSERTION
+        auto vid_search = this->logical_timestamps.find( vertex_id );
+        if ( vid_search == this->logical_timestamps.end() ) {
+          this->logical_timestamps.insert( { vertex_id, initial_lts } );
+        } else {
+          std::stringstream ss;
+          ss << "Vertex ID: " << vertex_id 
+             << " has already been assigned a logical timestamp" << std::endl;
+          throw std::runtime_error( ss.str() );
+        }
+#else
+        this->logical_timestamps.insert( { vertex_id, initial_lts } );
+#endif
+      }
+      // Case 2: Vertex represents a send
+      // Assign it it's local predecessor's logical timestamp plus the tick, 
+      // then send its logical timestamp to its remote successor.
+      else if ( event_type == 0 ) {
+        // Get local predecessor's lts
+        size_t local_pred_vertex_id = vertex_id - 1;
+        
+        auto search = this->logical_timestamps.find( local_pred_vertex_id );
+        if ( search == this->logical_timestamps.end() ) {
+          std::cout << "Rank: " << rank << " send vertex: " << vertex_id
+                    << " local predecessor: " << local_pred_vertex_id
+                    << " has no lts" << std::endl;
+          exit(0);
+        }
+        size_t local_pred_lts = this->logical_timestamps.at( local_pred_vertex_id );
+        // Get my lts by incrementing local pred's
+        size_t lts = local_pred_lts + tick;
+        this->logical_timestamps.insert( { vertex_id, lts } );
+        
+        auto search2 = this->vertex_id_to_channel.find( vertex_id );
+        if ( search2 == this->vertex_id_to_channel.end() ) {
+          std::cout << "Rank: " << rank << " send vertex: " << vertex_id
+                    << " not mapped to channel" << std::endl;
+          exit(0);
+        }
+        
+        Channel channel = this->vertex_id_to_channel.at( vertex_id );
+
+        int dst = channel.get_dst();
+        int tag = channel.get_tag();
+
+        int owner = this->config.lookup_owning_rank( dst );
+        
+        //if ( owner != rank ) { 
+
+        std::cout << "Rank: " << rank << " will send lts: " << lts 
+                  << " in channel: " << channel << " to rank: " << dst << std::endl;
+
+        mpi_rc = MPI_Send( &lts, 1, my_MPI_SIZE_T, dst, tag, MPI_COMM_WORLD );
+        //mpi_rc = MPI_Send( &lts, 1, my_MPI_SIZE_T, owner, tag, MPI_COMM_WORLD );
+        //}
+        //else {
+        //  //// can just set lts of receiver locally
+        //  //size_t receiver_vertex_id = this->sender_to_receiver.at( vertex_id );
+        //  //size_t receiver_local_pred = receiver_vertex_id - 1;
+
+        //  //size_t receiver_lts = std::max( 
+        //}
+      }
+      // Case 3: Vertex represents a recv
+      // Assign it the max of its local and remote predecessors' logical 
+      // timestamps plus the tick
+      else if ( event_type == 1 ) {
+        // Get local predecessor's lts
+        size_t local_pred_vertex_id = vertex_id - 1;
+        
+        auto search = this->logical_timestamps.find( local_pred_vertex_id );
+        if ( search == this->logical_timestamps.end() ) {
+          std::cout << "Rank: " << rank << " recv vertex: " << vertex_id
+                    << " local predecessor has no lts" << std::endl;
+          exit(0);
+        }
+
+        size_t local_pred_lts = this->logical_timestamps.at( local_pred_vertex_id );
+
+        // Get remote predecessor's lts
+        Channel channel = this->vertex_id_to_channel.at( vertex_id );
+        
+        int src = channel.get_src();
+        int tag = channel.get_tag();
+        
+        int owner = this->config.lookup_owning_rank( src );
+
+        size_t remote_pred_lts = 0;
+        
+        
+        mpi_rc = MPI_Recv( &remote_pred_lts, 1, my_MPI_SIZE_T, src, tag,
+                           MPI_COMM_WORLD, MPI_STATUS_IGNORE );
+        std::cout << "Rank: " << rank << " received sent clock: " << remote_pred_lts
+                  << " in channel: " << channel << " from rank: " << src << std::endl;
+        //mpi_rc = MPI_Recv( &remote_pred_lts, 1, my_MPI_SIZE_T, owner, tag,
+        //                   MPI_COMM_WORLD, MPI_STATUS_IGNORE );
+        size_t lts = std::max( local_pred_lts, remote_pred_lts ) + tick;
+        std::cout << "Rank: " << rank << " setting lts of recv vertex: " << vertex_id
+                  << " to: " << lts << std::endl;
+        this->logical_timestamps.insert( { vertex_id, lts } );
 
       }
+      // Case 4: Everything else. Just finalize for right now
+      else {
+        // Get local predecessor's lts
+        size_t local_pred_vertex_id = vertex_id - 1;
+        size_t local_pred_lts = this->logical_timestamps.at( local_pred_vertex_id );
+        // Get my lts by incrementing local pred's
+        size_t lts = local_pred_lts + tick;
+        this->logical_timestamps.insert( { vertex_id, lts } );
+      }
+
     }
+
+
   }
 
 
@@ -465,12 +613,16 @@ void EventGraph::report_program_order_edges() const
     auto dst_vertex_id = edge.second;
     auto src_vertex_type = this->vertex_id_to_event_type.at( src_vertex_id );
     auto dst_vertex_type = this->vertex_id_to_event_type.at( dst_vertex_id );
+    auto src_vertex_lts = this->logical_timestamps.at( src_vertex_id );
+    auto dst_vertex_lts = this->logical_timestamps.at( dst_vertex_id );
     std::cout << "Program Order Edge: "
               << "ID: " << src_vertex_id 
               << ", Type: " << type_to_name.at( src_vertex_type )
+              << ", LTS: " << src_vertex_lts
               << " --> "
               << "ID: " << dst_vertex_id
               << ", Type: " << type_to_name.at( dst_vertex_type )
+              << ", LTS: " << dst_vertex_lts
               << std::endl;
   }
 }
@@ -478,15 +630,25 @@ void EventGraph::report_program_order_edges() const
 void EventGraph::report_message_order_edges() const
 {
   for ( auto edge : this->message_order_edges ) {
-    auto src_vertex_id = edge.first;
-    auto dst_vertex_id = edge.second;
+    size_t src_vertex_id = edge.first;
+    size_t dst_vertex_id = edge.second;
+    size_t src_vertex_lts = this->logical_timestamps.at( src_vertex_id );
+    size_t dst_vertex_lts;
+    auto search = this->logical_timestamps.find( dst_vertex_id ); 
+    if ( search != this->logical_timestamps.end() ) {
+      dst_vertex_lts = this->logical_timestamps.at( dst_vertex_id );
+    } else {
+      dst_vertex_lts = 0;
+    }
     auto channel = this->vertex_id_to_channel.at( src_vertex_id );
     std::cout << "Message Order Edge: "
               << "ID: " << src_vertex_id 
               << ", Type: send" 
+              << ", LTS: " << src_vertex_lts
               << " --> "
               << "ID: " << dst_vertex_id
-              << ", Type: recv" 
+              << ", Type: recv"
+              << ", LTS: " << dst_vertex_lts
               << ", in Channel: " << channel
               << std::endl;
   }

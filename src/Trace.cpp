@@ -390,6 +390,11 @@ size_t Trace::get_final_vertex_id() const
   return this->final_vertex_id;
 }
 
+size_t Trace::get_vertex_id_offset() const
+{
+  return this->vertex_id_offset;
+}
+
 // Returns the directory (effectively, the set of trace files representing a 
 // single execution) of which the trace file that this Trace object represents
 // is a member

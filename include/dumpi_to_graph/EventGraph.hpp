@@ -39,8 +39,7 @@ private:
   std::vector<std::pair<size_t,size_t>> message_order_edges;
 
   // Data structures for event graph labels 
-  std::vector<size_t> logical_timestamps; // FIXME: scalar-only for right now
-  std::vector< std::vector<std::string> > vertex_labels;
+  std::unordered_map<size_t,size_t> logical_timestamps; // FIXME: scalar-only for right now
 
   // Data directly copied from configuration and traces
   Configuration config;

@@ -149,6 +149,11 @@ int main(int argc, char** argv)
     // Apply logical timestamps
     event_graph.apply_scalar_logical_clock();
 
+    mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
+
+    event_graph.report_program_order_edges();
+    event_graph.report_message_order_edges();
+
 
   } // End of loop over trace directories
 
