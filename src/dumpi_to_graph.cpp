@@ -142,116 +142,12 @@ int main(int argc, char** argv)
 #endif
 
   
-    //exit(0);
-
     // Construct this dumpi_to_graph process's partial view of the entire event
     // graph.
     EventGraph event_graph( config, rank_to_trace );
 
-
-
-    //mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
-    //if ( dumpi_to_graph_rank == 0 ) {
-    //  std::cout << std::endl;
-    //}
-
-    //// determine the offsets for each trace I'm responsible for
-    //std::unordered_map<int, size_t> trace_rank_to_vertex_count;
-    //for ( auto kvp : rank_to_trace ) {
-    //  trace_rank_to_vertex_count.insert( { kvp.first, 
-    //                                       kvp.second->get_event_seq().size() } );
-    //}
-
-    //// Broadcast vertex counts
-    //boost::mpi::communicator world;
-    //std::unordered_map<int,size_t> trace_rank_to_vertex_count_global;
-    //for (int i=0; i<comm_size; ++i) {
-    //  std::unordered_map<int,size_t> payload;
-    //  if ( dumpi_to_graph_rank == i ) {
-    //    payload = trace_rank_to_vertex_count;
-    //    boost::mpi::broadcast( world, payload, i );
-    //  } else {
-    //    boost::mpi::broadcast( world, payload, i );
-    //  }
-    //  for (auto kvp : payload ) {
-    //    trace_rank_to_vertex_count_global.insert( { kvp.first, kvp.second } );
-    //  }
-    //}
-    //
-    //// Calculate vertex ID offsets
-    //std::unordered_map<int,size_t> trace_rank_to_offset;
-    //for (auto kvp : trace_rank_to_vertex_count_global) {
-    //  int offset = 0;
-    //  for (int i=0; i<kvp.first; i++) {
-    //    offset += trace_rank_to_vertex_count_global.at(i);
-    //  }
-    //  trace_rank_to_offset.insert( { kvp.first, offset } );
-    //}
-    //
-    //// Apply offsets to event sequences
-    //for ( auto kvp : rank_to_trace ) {
-    //  kvp.second->apply_vertex_id_offset( trace_rank_to_offset.at( kvp.first ) );
-    //}
-
-    //mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
-    //
-    //// Sanity check
-    //for (int i=0; i<comm_size; ++i) {
-    //  if ( dumpi_to_graph_rank == i ) {
-    //    std::cout << "Traces managed by dumpi-to-graph process: " << dumpi_to_graph_rank << std::endl;
-    //    for ( auto kvp : rank_to_trace ) {
-    //      int trace_rank = kvp.first;
-    //      Trace* trace  = kvp.second;
-    //      std::cout << "Trace data for rank: " << trace_rank << std::endl;
-    //      trace->report_channel_to_send_seq();
-    //      trace->report_channel_to_recv_seq();
-    //    }
-    //    std::cout << std::endl;
-    //  }
-    //  mpi_rc = MPI_Barrier(MPI_COMM_WORLD);
-    //}
-
-    //// Before exchanging any data between dumpi_to_graph processes, we merge
-    //// all of the channel_to_* maps for convenience
-    //std::unordered_map< Channel, std::vector<size_t>, ChannelHash > channel_to_send_seq;
-    //std::unordered_map< Channel, std::vector<size_t>, ChannelHash > channel_to_recv_seq;
-    //for ( auto kvp : rank_to_trace ) {
-    //  for ( auto kvp2 : kvp.second->get_channel_to_send_seq() ) {
-    //    channel_to_send_seq.insert( { kvp2.first, kvp2.second } );
-    //  }
-    //  for ( auto kvp2 : kvp.second->get_channel_to_recv_seq() ) {
-    //    channel_to_recv_seq.insert( { kvp2.first, kvp2.second } );
-    //  }
-    //}
-    //
-    //mpi_rc = MPI_Barrier(MPI_COMM_WORLD);
-
-    //// Sanity check
-    //if ( dumpi_to_graph_rank == REPORTING_RANK ) {
-    //  std::cout << "dumpi-to-graph process: " << dumpi_to_graph_rank 
-    //            << " channel maps: " << std::endl;
-    //  std::cout << "channel_to_send_seq:" << std::endl;
-    //  for ( auto kvp : channel_to_send_seq ) {
-    //    std::cout << "Channel: " << kvp.first << ", Send Vertex IDs: ";
-    //    for ( auto send : kvp.second ) {
-    //      std::cout << " " << send;
-    //    }
-    //    std::cout << std::endl;
-    //  }
-    //  std::cout << "channel_to_recv_seq:" << std::endl;
-    //  for ( auto kvp : channel_to_recv_seq ) {
-    //    std::cout << "Channel: " << kvp.first << ", Send Vertex IDs: ";
-    //    for ( auto recv : kvp.second ) {
-    //      std::cout << " " << recv;
-    //    }
-    //    std::cout << std::endl;
-    //  }
-    //  std::cout << std::endl;
-    //}
-
-    //mpi_rc = MPI_Barrier(MPI_COMM_WORLD);
-
-    //exit(0);
+    // Apply logical timestamps
+    event_graph.apply_scalar_logical_clock();
 
 
   } // End of loop over trace directories

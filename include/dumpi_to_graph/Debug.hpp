@@ -28,7 +28,7 @@ bool contains_no_invalid_vertex_ids( std::vector<size_t> vertex_ids );
 bool validate_remote_recv_seqs( const int* recv_buffer, 
                                 int recv_buffer_len,
                                 const channel_map& chan_to_send_seq,
-                                const channel_map& chan_to_offset );
+                                const std::unordered_map<Channel,int,ChannelHash>& chan_to_offset );
 
 bool validate_trace( Trace trace );
 

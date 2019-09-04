@@ -16,9 +16,8 @@
         "MPI_Testsome",
         "MPI_Testall",
         "MPI_Barrier",
-        "MPI_Comm_rank",
-        "MPI_Comm_size",
-        "MPI_Comm_split"
+        "MPI_Cancel",
+        "MPI_Request_free"
     ],
 
     "happens_before_orders":

@@ -23,13 +23,14 @@ public:
 
   // Convenience functions for printing state
   void report_program_order_edges() const;
+  void report_message_order_edges() const;
 
 private:
   void make_program_order_edges();
-  void exchange_message_matching_data();
+  void make_message_order_edges();
   void exchange_local_message_matching_data();
   void exchange_remote_message_matching_data();
-  void make_collective_message_edges();
+  void make_collective_edges();
 
   // Data structures that define the event graph itself 
   // (or at least this dumpi_to_graph process's partial view of the event graph)
