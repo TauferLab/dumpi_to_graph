@@ -21,9 +21,16 @@ public:
   // Function for applying scalar logical timestamps
   void apply_scalar_logical_clock();
 
+  // Function to merge the partial edge lists after labeling
+  void merge();
+
+  // Function to write the edge list to file
+  void write() const;
+  
   // Convenience functions for printing state
   void report_program_order_edges() const;
   void report_message_order_edges() const;
+
 
 private:
   void make_program_order_edges();

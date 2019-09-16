@@ -1,7 +1,7 @@
 MPICXX=mpicxx
 RM=rm -f
 
-CPPFLAGS= -Wall -Werror -pedantic 
+CPPFLAGS= -Wall #-Werror -pedantic 
 CXXFLAGS= -std=c++11 -O3
 
 INCLUDES= -I. 
@@ -9,16 +9,20 @@ INCLUDES+= -I../include
 INCLUDES+= -I/g/g17/chapp1/repos/dumpi_to_graph/include/dumpi_to_graph/
 INCLUDES+= -I/g/g17/chapp1/repos/dumpi_to_graph/include/external/
 INCLUDES+= -I/g/g17/chapp1/repos/sst-dumpi/
-INCLUDES+= -I/g/g17/chapp1/repos/boost_1_67_0/
+#INCLUDES+= -I/g/g17/chapp1/repos/boost_1_67_0/
+#INCLUDES+= -I/usr/tce/packages/boost/boost-1.69.0-mvapich2-2.3-gcc-8.1.0/include
+INCLUDES+= -I/usr/tce/packages/boost/boost-1.69.0-mvapich2-2.3-gcc-4.9.3/include
+INCLUDES+= -I/g/g17/chapp1/repos/igraph-0.7.1/build/include/
 
-LDFLAGS=
-LD_LIBRARY_FLAGS=
+LDFLAGS= 
+LD_LIBRARY_FLAGS= -L/usr/tce/packages/boost/boost-1.69.0-mvapich2-2.3-gcc-4.9.3/lib -L/g/g17/chapp1/repos/sst-dumpi/build_catalyst/lib -L/g/g17/chapp1/repos/igraph-0.7.1/build/lib/
 
 LIBS= -lundumpi 
 LIBS+= -lboost_mpi 
 LIBS+= -lboost_serialization 
 LIBS+= -lboost_filesystem
 LIBS+= -lboost_system
+LIBS+= -ligraph
 
 # Application 
 SOURCES= dumpi_to_graph.cpp 
@@ -37,7 +41,7 @@ SOURCES+= request_mutating_callbacks.cpp
 SOURCES+= Trace.cpp
 SOURCES+= Channel.cpp
 SOURCES+= Request.cpp
-SOURCES+= Event.cpp
+#SOURCES+= Event.cpp
 SOURCES+= EventGraph.cpp
 # Utilities
 SOURCES+= Utilities.cpp

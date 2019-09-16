@@ -115,7 +115,7 @@ int main(int argc, char** argv)
       double ingest_trace_file_elapsed_time = MPI_Wtime() - ingest_trace_file_start_time;
       std::cout << "\tRank: " << dumpi_to_graph_rank << ", "
                 << "Ingested Trace File: " << trace_file << ", "
-                << "In: " << ingest_trace_file_elapsed_time
+                << "In: " << ingest_trace_file_elapsed_time << " seconds" 
                 << std::endl;
 
 #endif
@@ -128,7 +128,7 @@ int main(int argc, char** argv)
       double ingest_trace_dir_elapsed_time = MPI_Wtime() - ingest_trace_dir_start_time;
       std::cout << "Rank: " << dumpi_to_graph_rank << ", "
                 << "Trace Dir: " << trace_dir << ", "
-                << "Trace Ingestion Time: " << ingest_trace_dir_elapsed_time
+                << "Total Trace Dir Ingestion Time: " << ingest_trace_dir_elapsed_time << " seconds"
                 << std::endl;
     }
 #endif
@@ -144,15 +144,23 @@ int main(int argc, char** argv)
   
     // Construct this dumpi_to_graph process's partial view of the entire event
     // graph.
+    std::cout << "Rank: " << dumpi_to_graph_rank << " starting event graph construction" << std::endl;
     EventGraph event_graph( config, rank_to_trace );
+    
+    std::cout << "Rank: " << dumpi_to_graph_rank << " finished event graph construction" << std::endl;
 
     // Apply logical timestamps
     event_graph.apply_scalar_logical_clock();
+    
+    std::cout << "Rank: " << dumpi_to_graph_rank << " logical timestamps applied" << std::endl;
+    //exit(0);
 
     mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
 
-    event_graph.report_program_order_edges();
-    event_graph.report_message_order_edges();
+    //event_graph.report_program_order_edges();
+    //event_graph.report_message_order_edges();
+
+    event_graph.merge();
 
 
   } // End of loop over trace directories

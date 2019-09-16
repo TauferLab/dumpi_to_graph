@@ -6,13 +6,19 @@
 #include <algorithm> // max
 #include <cstdint>
 #include <climits>
+#include <cstdio>
 #include <cinttypes>
 #include <unordered_map>
 #include <vector>
 #include <string>
+#include <fstream>
+#include <iostream>
 
 #include "boost/serialization/unordered_map.hpp" 
 #include "boost/mpi.hpp"
+
+// Igraph
+#include "igraph/igraph.h"
 
 // Super gross workaround for using size_t for scalar logical clock
 #if SIZE_MAX == UCHAR_MAX
@@ -133,6 +139,7 @@ EventGraph::EventGraph( const Configuration& config,
     for ( int i=0; i<n_events; ++i ) {
       uint8_t event_type = event_seq[i];
       size_t vertex_id = initial_vertex_id + i;
+      this->vertex_ids.push_back( vertex_id );
       this->vertex_id_to_event_type.insert( { vertex_id, event_type } );
     }
   }
@@ -374,6 +381,7 @@ void EventGraph::exchange_remote_message_matching_data()
                        MPI_COMM_WORLD );
   }
 
+
   // Complete all of the receives
   mpi_rc = MPI_Waitall( n_recv_reqs, recv_reqs, MPI_STATUSES_IGNORE );
 
@@ -490,8 +498,8 @@ void EventGraph::apply_scalar_logical_clock()
         
         //if ( owner != rank ) { 
 
-        std::cout << "Rank: " << rank << " will send lts: " << lts 
-                  << " in channel: " << channel << " to rank: " << dst << std::endl;
+        //std::cout << "Rank: " << rank << " will send lts: " << lts 
+        //          << " in channel: " << channel << " to rank: " << dst << std::endl;
 
         mpi_rc = MPI_Send( &lts, 1, my_MPI_SIZE_T, dst, tag, MPI_COMM_WORLD );
         //mpi_rc = MPI_Send( &lts, 1, my_MPI_SIZE_T, owner, tag, MPI_COMM_WORLD );
@@ -533,13 +541,13 @@ void EventGraph::apply_scalar_logical_clock()
         
         mpi_rc = MPI_Recv( &remote_pred_lts, 1, my_MPI_SIZE_T, src, tag,
                            MPI_COMM_WORLD, MPI_STATUS_IGNORE );
-        std::cout << "Rank: " << rank << " received sent clock: " << remote_pred_lts
-                  << " in channel: " << channel << " from rank: " << src << std::endl;
+        //std::cout << "Rank: " << rank << " received sent clock: " << remote_pred_lts
+        //          << " in channel: " << channel << " from rank: " << src << std::endl;
         //mpi_rc = MPI_Recv( &remote_pred_lts, 1, my_MPI_SIZE_T, owner, tag,
         //                   MPI_COMM_WORLD, MPI_STATUS_IGNORE );
         size_t lts = std::max( local_pred_lts, remote_pred_lts ) + tick;
-        std::cout << "Rank: " << rank << " setting lts of recv vertex: " << vertex_id
-                  << " to: " << lts << std::endl;
+        //std::cout << "Rank: " << rank << " setting lts of recv vertex: " << vertex_id
+        //          << " to: " << lts << std::endl;
         this->logical_timestamps.insert( { vertex_id, lts } );
 
       }
@@ -557,46 +565,203 @@ void EventGraph::apply_scalar_logical_clock()
 
 
   }
+}
 
 
-  //int n_vertices = this->vertex_ids.size();
-  //for ( int i=0; i<n_vertices; ++i) {
-  //  int vertex_type = this->vertex_types[ i ];
-  //  // Case 1: Vertex represents MPI_Init or MPI_Init_thread. 
-  //  // Assign it the initial logical timestamp value
-  //  if ( vertex_type == 0 ) {
-  //    this->logical_timestamps[ i ] = initial_lts;
-  //  }
-  //  // Case 2: Vertex represents a send
-  //  // Assign it it's local predecessor's logical timestamp plus the tick, then
-  //  // send its logical timestamp to its remote successor
-  //  else if ( vertex_type == 1 ) {
-  //    int local_pred_lts = this->logical_timestamps[ i-1 ];
-  //    int lts = local_pred_lts + tick;
-  //    this->logical_timestamps[ i ] = lts;
-  //    Channel chan = this->vid_to_chan.at( this->vertex_ids[ i ] );
-  //    int dst = chan.get_dst();
-  //    int tag = chan.get_tag();
-  //    // FIXME: Pretty sure this is depending on eager delivery of small 
-  //    // messages (i.e., single int) to not deadlock
-  //    mpi_rc = MPI_Send( &lts, 1, MPI_INT, dst, tag, MPI_COMM_WORLD );
-  //  }
-  //  // Case 3: Vertex represents a recv
-  //  // Assign it the max of its local and remote predecessors' logical 
-  //  // timestamps plus the tick
-  //  else if ( vertex_type == 2 ) {
-  //    int local_pred_lts = this->logical_timestamps[ i-1 ];
-  //    Channel chan = this->vid_to_chan.at( this->vertex_ids[ i ] );
-  //    int src = chan.get_src();
-  //    int tag = chan.get_tag();
-  //    int remote_pred_lts;
-  //    mpi_rc = MPI_Recv( &remote_pred_lts, 1, MPI_INT, src, tag, 
-  //                       MPI_COMM_WORLD, MPI_STATUS_IGNORE );
-  //    int lts = std::max( local_pred_lts, remote_pred_lts ) + tick;
-  //    this->logical_timestamps[ i ] = lts;
-  //  }
+
+void EventGraph::merge()
+{
+  boost::mpi::communicator world;
+  int rank = world.rank();
+
+  int vertex_ids_tag = 0;
+  int lts_map_tag = 1;
+  int event_type_map_tag = 2;
+  int message_order_edge_tag = 17;
+  int program_order_edge_tag = 36;
+
+  // Accumulate all graph data into these
+  std::vector<size_t> vertex_ids = this->vertex_ids; 
+  std::unordered_map<size_t,size_t> vertex_id_to_lts = this->logical_timestamps;
+  std::unordered_map<size_t,uint8_t> vertex_id_to_event_type = this->vertex_id_to_event_type;
+  std::vector<std::pair<size_t,size_t>> message_order_edges = this->message_order_edges;
+  std::vector<std::pair<size_t,size_t>> program_order_edges = this->program_order_edges;
+
+  // Root posts receives for vertices, vertex labels, and edges 
+  // All other dumpi_to_graph processes send their partial view of the graph
+  if ( rank == 0 ) {
+    for ( int i=1; i < world.size(); ++i ) {
+      // Receive vertex IDs and vertex labels
+      std::vector<size_t> vertex_ids_recv_buffer;
+      world.recv( i, vertex_ids_tag, vertex_ids_recv_buffer );
+      for ( auto vid : vertex_ids_recv_buffer ) {
+        vertex_ids.push_back( vid );
+      }
+
+      // Receive vertex label maps
+      std::unordered_map<size_t,size_t> lts_map_recv_buffer;
+      std::unordered_map<size_t,uint8_t> event_type_map_recv_buffer;
+      world.recv( i, lts_map_tag, lts_map_recv_buffer );
+      for ( auto kvp : lts_map_recv_buffer ) {
+        vertex_id_to_lts.insert( kvp );
+      }
+      world.recv( i, event_type_map_tag, event_type_map_recv_buffer );
+      for ( auto kvp : event_type_map_recv_buffer ) {
+        vertex_id_to_event_type.insert( kvp );
+      }
+
+      // A common recv buffer for edges
+      std::vector<std::pair<size_t,size_t>> edges_recv_buffer;
+      
+      // Receive message order edges
+      world.recv( i, message_order_edge_tag, edges_recv_buffer );
+      for ( auto edge : edges_recv_buffer ) {
+        message_order_edges.push_back( edge );
+      }
+      std::cout << "Rank: " << rank 
+                << " received: " << edges_recv_buffer.size()
+                << " message order edges from rank: " << i 
+                << std::endl;
+      
+      // Receive program order edges
+      world.recv( i, program_order_edge_tag, edges_recv_buffer );
+      for ( auto edge : edges_recv_buffer ) {
+        program_order_edges.push_back( edge );
+      }
+      std::cout << "Rank: " << rank 
+                << " received: " << edges_recv_buffer.size() 
+                << " program order edges from rank: " << i 
+                << std::endl;
+    }
+    
+    std::cout << "Rank: " << rank 
+              << " total number of message order edges: " << message_order_edges.size() 
+              << " total number of program order edges: " << program_order_edges.size() 
+              << std::endl;
+    std::unordered_map<uint8_t, std::string> type_to_name =
+    {
+      {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}
+    };
+    for ( int i=0; i < vertex_ids.size(); ++i ) {
+      size_t vid = vertex_ids[i];
+      std::cout << "Vertex: " << vid
+                << " Type: " << type_to_name[ vertex_id_to_event_type[vid] ]
+                << " LTS: " << vertex_id_to_lts[ vid ]
+                << std::endl;
+    }
+
+  }
+  else {
+    // Send vertex IDs
+    world.send( 0, vertex_ids_tag, this->vertex_ids );
+    // Send vertex label maps
+    world.send( 0, lts_map_tag, this->logical_timestamps );
+    world.send( 0, event_type_map_tag, this->vertex_id_to_event_type );
+    // Send edges
+    world.send( 0, message_order_edge_tag, this->message_order_edges );
+    world.send( 0, program_order_edge_tag, this->program_order_edges );
+  }
+
+  
+
+  // Root constructs the igraph representation
+  if ( rank == 0 ) {
+    std::unordered_map<uint8_t, std::string> type_to_name =
+    {
+      {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}
+    };
+    int igraph_rc;
+    // Set up the igraph attribute handler 
+    igraph_i_set_attribute_table(&igraph_cattribute_table);
+    
+    // Initialize the graph
+    size_t n_vertices = vertex_ids.size();
+    igraph_t graph;
+    // boolean parameter makes the graph directed
+    igraph_rc = igraph_empty( &graph, n_vertices, true ); 
+    std::cout << "Base graph constructed" << std::endl;
+    // Add vertex attributes
+    const char event_type_attr_name[16] = "event_type";
+    const char lts_attr_name[16] = "lts";
+    for ( auto vid : vertex_ids ) {
+      uint8_t event_type = vertex_id_to_event_type[vid];
+      const std::string event_type_str = type_to_name[event_type];
+      size_t lts = vertex_id_to_lts[vid];
+      igraph_rc = igraph_cattribute_VAS_set( &graph, event_type_attr_name, vid, event_type_str.c_str() );
+      igraph_rc = igraph_cattribute_VAN_set( &graph, lts_attr_name, vid, lts );
+    }
+    std::cout << "Attributes added" << std::endl;
+    // Add edges
+    igraph_vector_t edges;
+    size_t n_edges = 2 * ( program_order_edges.size() + message_order_edges.size() );
+    igraph_vector_init( &edges, n_edges ); 
+    size_t edge_idx = 0;
+    for ( auto edge : program_order_edges ) {
+      VECTOR(edges)[ edge_idx ] = edge.first;
+      edge_idx++;
+      VECTOR(edges)[ edge_idx ] = edge.second;
+      edge_idx++;
+    }
+    for ( auto edge : message_order_edges ) {
+      VECTOR(edges)[ edge_idx ] = edge.first;
+      edge_idx++;
+      VECTOR(edges)[ edge_idx ] = edge.second;
+      edge_idx++;
+    }
+    igraph_rc = igraph_add_edges( &graph, &edges, 0 );
+  
+    std::string trace_dir = this->config.get_trace_dirs()[0];
+    std::stringstream ss;
+    ss << trace_dir << "/event_graph.graphml"; 
+    std::string output_path = ss.str();
+
+    FILE* outfile;
+    outfile = fopen( output_path.c_str(), "w" );
+    igraph_rc = igraph_write_graph_graphml( &graph, outfile, false );
+    fclose( outfile );
+  }
+}
+
+
+
+
+void EventGraph::write() const 
+{
+  std::unordered_map<uint8_t, std::string> type_to_name =
+  {
+    {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}
+  };
+  int mpi_rc, rank;
+  mpi_rc = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  std::string trace_dir = this->config.get_trace_dirs()[0];
+  std::stringstream ss;
+  ss << trace_dir << "/edge_list_rank" << rank << ".txt";
+  std::string edge_list_path = ss.str();
+
+  std::ofstream out(edge_list_path);
+
+  // Print vertex IDs and labels
+  for ( int i=0; i<this->vertex_ids.size(); ++i) {
+    size_t vertex_id = this->vertex_ids[i];
+    uint8_t event_type = this->vertex_id_to_event_type.at(vertex_id);
+    size_t lts = this->logical_timestamps.at(vertex_id);
+    if ( rank == 0 ) {
+      std::cout << vertex_id << ", " << type_to_name[event_type] << ", " << lts << std::endl;
+    }
+  }
+
+  //for ( auto edge : this->program_order_edges ) {
+  //  out << edge.first << ", " << edge.second << std::endl;
+  //}
+
+  //for ( auto edge : this->message_order_edges ) {
+  //  out << edge.first << ", " << edge.second << std::endl;
   //}
 }
+
+
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Convenience functions for printing the vertices and edges of an EventGraph //
