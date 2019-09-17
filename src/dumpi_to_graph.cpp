@@ -128,7 +128,8 @@ int main(int argc, char** argv)
       double ingest_trace_dir_elapsed_time = MPI_Wtime() - ingest_trace_dir_start_time;
       std::cout << "Rank: " << dumpi_to_graph_rank << ", "
                 << "Trace Dir: " << trace_dir << ", "
-                << "Total Trace Dir Ingestion Time: " << ingest_trace_dir_elapsed_time << " seconds"
+                << "Total Trace Dir Ingestion Time: " 
+                << ingest_trace_dir_elapsed_time << " seconds"
                 << std::endl;
     }
 #endif
@@ -138,34 +139,33 @@ int main(int argc, char** argv)
     for ( auto kvp : rank_to_trace ) {
       assert( validate_trace( *kvp.second ) );
     }
-    std::cout << "Rank: " << dumpi_to_graph_rank << " traces validated" << std::endl;
+    std::cout << "Rank: " << dumpi_to_graph_rank 
+              << " traces validated" << std::endl;
 #endif
 
   
     // Construct this dumpi_to_graph process's partial view of the entire event
     // graph.
-    std::cout << "Rank: " << dumpi_to_graph_rank << " starting event graph construction" << std::endl;
+    std::cout << "Rank: " << dumpi_to_graph_rank 
+              << " starting event graph construction" << std::endl;
     EventGraph event_graph( config, rank_to_trace );
-    
-    std::cout << "Rank: " << dumpi_to_graph_rank << " finished event graph construction" << std::endl;
+    std::cout << "Rank: " << dumpi_to_graph_rank 
+              << " finished event graph construction" << std::endl;
 
     // Apply logical timestamps
+    std::cout << "Rank: " << dumpi_to_graph_rank 
+              << " started applying logical timestamps" << std::endl;
     event_graph.apply_scalar_logical_clock();
-    
-    std::cout << "Rank: " << dumpi_to_graph_rank << " logical timestamps applied" << std::endl;
-    //exit(0);
+    std::cout << "Rank: " << dumpi_to_graph_rank 
+              << " finished applying logical timestamps" << std::endl;
 
     mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
-
-    //event_graph.report_program_order_edges();
-    //event_graph.report_message_order_edges();
-
-    event_graph.merge();
-
+    
+    // Merge all partial views of the event graph into a single igraph graph,
+    // set vertex and edge attributes, and write to disk
+    event_graph.merge_and_write();
 
   } // End of loop over trace directories
-
-
 
   mpi_rc = MPI_Finalize();
 }

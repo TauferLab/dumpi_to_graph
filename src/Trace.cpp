@@ -16,7 +16,6 @@
 #include "Logging.hpp"
 #include "Channel.hpp"
 #include "Request.hpp"
-#include "Event.hpp"
 #include "Debug.hpp"
 
 void Trace::register_initial_dumpi_timestamp( const dumpi_time& wall_time )

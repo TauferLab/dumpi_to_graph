@@ -16,7 +16,7 @@
 // Internal
 #include "Configuration.hpp"
 #include "Channel.hpp"
-#include "Event.hpp"
+#include "Request.hpp"
 
 class Trace
 {
@@ -43,7 +43,6 @@ public:
   std::vector<double> get_wall_time_seq() const;
   std::unordered_map<size_t,Channel> get_vertex_id_to_channel() const;
 
-  //void update_event_seq( Event* event_ptr );
   void update_event_seq( size_t vertex_id );
 
   void register_recv( const Channel& channel, size_t recv_vertex_id );

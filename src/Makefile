@@ -41,7 +41,6 @@ SOURCES+= request_mutating_callbacks.cpp
 SOURCES+= Trace.cpp
 SOURCES+= Channel.cpp
 SOURCES+= Request.cpp
-#SOURCES+= Event.cpp
 SOURCES+= EventGraph.cpp
 # Utilities
 SOURCES+= Utilities.cpp

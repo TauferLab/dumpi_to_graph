@@ -21,12 +21,10 @@ public:
   // Function for applying scalar logical timestamps
   void apply_scalar_logical_clock();
 
-  // Function to merge the partial edge lists after labeling
-  void merge();
+  // Function to merge the partial edge lists into a single igraph object then
+  // write it out to disk
+  void merge_and_write();
 
-  // Function to write the edge list to file
-  void write() const;
-  
   // Convenience functions for printing state
   void report_program_order_edges() const;
   void report_message_order_edges() const;
@@ -59,6 +57,7 @@ private:
   std::unordered_map<size_t,Channel> vertex_id_to_channel;
   std::unordered_map<size_t,uint8_t> vertex_id_to_event_type;
   std::unordered_map<size_t,double> vertex_id_to_wall_time;
+  std::unordered_map<size_t,int> vertex_id_to_pid; 
 };
 
 

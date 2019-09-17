@@ -11,7 +11,6 @@
 #include "Utilities.hpp"
 #include "Channel.hpp"
 #include "Request.hpp"
-#include "Event.hpp"
 
 int cb_MPI_Irecv(const dumpi_irecv *prm, 
                  uint16_t thread, 
