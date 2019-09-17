@@ -80,6 +80,7 @@ int cb_MPI_Isend(const dumpi_isend *prm,
   
   // Associate this send event with its channel
   trace->register_send( channel, event_vertex_id );
+  trace->register_dumpi_timestamp( wall_time );
 
   // Since this is a non-blocking send, create and track its associated request
   int request_id = event.request;

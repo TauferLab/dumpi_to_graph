@@ -40,6 +40,7 @@ public:
   size_t get_final_vertex_id() const;
   size_t get_vertex_id_offset() const;
   std::vector<uint8_t> get_event_seq() const;
+  std::vector<double> get_wall_time_seq() const;
   std::unordered_map<size_t,Channel> get_vertex_id_to_channel() const;
 
   //void update_event_seq( Event* event_ptr );
@@ -49,6 +50,9 @@ public:
   void register_send( const Channel& channel, size_t send_vertex_id );
   void register_init();
   void register_finalize();
+
+  void register_initial_dumpi_timestamp( const dumpi_time& wall_time ); 
+  void register_dumpi_timestamp( const dumpi_time& wall_time ); 
 
   void register_request( int request_id, const Request& request );
 
@@ -121,6 +125,10 @@ private:
   // 3 := finalize ( MPI_Finalize )
   // 4 := barrier ( MPI_Barrier )
   std::vector<uint8_t> event_seq;
+
+  // Tracking wall-time timestamps
+  double initial_timestamp; 
+  std::vector<double> wall_time_seq;
 
   // For send and recv vertices, there is an associated channel
   std::unordered_map<size_t, Channel> vertex_id_to_channel;

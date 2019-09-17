@@ -23,6 +23,7 @@ int cb_MPI_Init(const dumpi_init *prm,
   
   // Add the event to the event sequence for this trace  
   trace->register_init();
+  trace->register_initial_dumpi_timestamp( wall_time );
   
   // Return OK
   return 0;
@@ -44,6 +45,7 @@ int cb_MPI_Init_thread(const dumpi_init_thread *prm,
   
   // Add the event to the event sequence for this trace  
   trace->register_init();
+  trace->register_initial_dumpi_timestamp( wall_time );
   
   // Return OK
   return 0;

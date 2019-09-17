@@ -42,6 +42,7 @@ int cb_MPI_Recv(const dumpi_recv *prm,
 
   // Associate this receive event with its channel
   trace->register_recv( channel, event_vertex_id );
+  trace->register_dumpi_timestamp( wall_time );
   
   // Return OK
   return 0;
@@ -70,6 +71,7 @@ int cb_MPI_Send(const dumpi_send *prm,
 
   // Associate this send event with its channel
   trace->register_send( channel, event_vertex_id );
+  trace->register_dumpi_timestamp( wall_time );
   
   // Return OK
   return 0;

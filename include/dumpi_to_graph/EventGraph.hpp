@@ -58,6 +58,7 @@ private:
   channel_map channel_to_recv_seq;
   std::unordered_map<size_t,Channel> vertex_id_to_channel;
   std::unordered_map<size_t,uint8_t> vertex_id_to_event_type;
+  std::unordered_map<size_t,double> vertex_id_to_wall_time;
 };
 
 

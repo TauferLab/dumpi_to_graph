@@ -10,6 +10,7 @@
 // DUMPI
 #include "dumpi/common/argtypes.h" 
 #include "dumpi/common/constants.h" // DUMPI_ANY_SOURCE, DUMPI_ANY_TAG
+#include "dumpi/common/types.h" // dumpi_clock 
 
 // Internal
 #include "Logging.hpp"
@@ -17,6 +18,36 @@
 #include "Request.hpp"
 #include "Event.hpp"
 #include "Debug.hpp"
+
+void Trace::register_initial_dumpi_timestamp( const dumpi_time& wall_time )
+{
+  int32_t wall_time_start_sec = wall_time.start.sec;
+  int32_t wall_time_stop_sec  = wall_time.stop.sec;
+  int32_t wall_time_start_ns = wall_time.start.nsec;
+  int32_t wall_time_stop_ns  = wall_time.stop.nsec;
+
+  double start = (double)wall_time_start_sec + (double)wall_time_start_ns / 10e9;
+  double stop = (double)wall_time_stop_sec + (double)wall_time_stop_ns / 10e9;
+  double midpoint = (start + stop) / 2;
+  
+  this->initial_timestamp = midpoint;   
+  this->wall_time_seq.push_back( 0.0 );
+}
+
+void Trace::register_dumpi_timestamp( const dumpi_time& wall_time )
+{
+  int32_t wall_time_start_sec = wall_time.start.sec;
+  int32_t wall_time_stop_sec  = wall_time.stop.sec;
+  int32_t wall_time_start_ns = wall_time.start.nsec;
+  int32_t wall_time_stop_ns  = wall_time.stop.nsec;
+
+  double start = (double)wall_time_start_sec + (double)wall_time_start_ns / 10e9;
+  double stop = (double)wall_time_stop_sec + (double)wall_time_stop_ns / 10e9;
+  double midpoint = (start + stop) / 2;
+ 
+  double timestamp = midpoint - this->initial_timestamp;
+  this->wall_time_seq.push_back( timestamp );
+}
 
 // Helper for updating channel_to_recv_seq and vertex_id_to_channel
 void Trace::register_recv( const Channel& channel, size_t recv_vertex_id )
@@ -324,6 +355,7 @@ void Trace::complete_irecv_request( Request request,
     // Create a recv event
     size_t event_vertex_id = this->get_next_vertex_id();
     this->register_recv( channel, event_vertex_id );
+    this->register_dumpi_timestamp( wall_time );
   }
 }
 
@@ -421,6 +453,11 @@ int Trace::get_dumpi_to_graph_rank() const
 std::vector<uint8_t> Trace::get_event_seq() const
 {
   return this->event_seq;
+}
+  
+std::vector<double> Trace::get_wall_time_seq() const
+{
+  return this->wall_time_seq;
 }
 
 // Returns the mapping from vertex IDs to channels

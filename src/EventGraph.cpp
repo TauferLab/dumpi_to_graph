@@ -134,13 +134,18 @@ EventGraph::EventGraph( const Configuration& config,
     }
     // Merge in event type data
     auto event_seq = kvp.second->get_event_seq();
+    auto wall_time_seq = kvp.second->get_wall_time_seq(); 
+
+
     size_t n_events = event_seq.size();
     size_t initial_vertex_id = kvp.second->get_initial_vertex_id();
     for ( int i=0; i<n_events; ++i ) {
       uint8_t event_type = event_seq[i];
+      double wall_time = wall_time_seq[i];
       size_t vertex_id = initial_vertex_id + i;
       this->vertex_ids.push_back( vertex_id );
       this->vertex_id_to_event_type.insert( { vertex_id, event_type } );
+      this->vertex_id_to_wall_time.insert( { vertex_id, wall_time } );
     }
   }
 
@@ -577,6 +582,7 @@ void EventGraph::merge()
   int vertex_ids_tag = 0;
   int lts_map_tag = 1;
   int event_type_map_tag = 2;
+  int wall_time_map_tag = 3;
   int message_order_edge_tag = 17;
   int program_order_edge_tag = 36;
 
@@ -584,6 +590,7 @@ void EventGraph::merge()
   std::vector<size_t> vertex_ids = this->vertex_ids; 
   std::unordered_map<size_t,size_t> vertex_id_to_lts = this->logical_timestamps;
   std::unordered_map<size_t,uint8_t> vertex_id_to_event_type = this->vertex_id_to_event_type;
+  std::unordered_map<size_t,double> vertex_id_to_wall_time = this->vertex_id_to_wall_time;
   std::vector<std::pair<size_t,size_t>> message_order_edges = this->message_order_edges;
   std::vector<std::pair<size_t,size_t>> program_order_edges = this->program_order_edges;
 
@@ -601,6 +608,7 @@ void EventGraph::merge()
       // Receive vertex label maps
       std::unordered_map<size_t,size_t> lts_map_recv_buffer;
       std::unordered_map<size_t,uint8_t> event_type_map_recv_buffer;
+      std::unordered_map<size_t,double> wall_time_map_recv_buffer;
       world.recv( i, lts_map_tag, lts_map_recv_buffer );
       for ( auto kvp : lts_map_recv_buffer ) {
         vertex_id_to_lts.insert( kvp );
@@ -608,6 +616,10 @@ void EventGraph::merge()
       world.recv( i, event_type_map_tag, event_type_map_recv_buffer );
       for ( auto kvp : event_type_map_recv_buffer ) {
         vertex_id_to_event_type.insert( kvp );
+      }
+      world.recv( i, wall_time_map_tag, wall_time_map_recv_buffer );
+      for ( auto kvp : wall_time_map_recv_buffer ) {
+        vertex_id_to_wall_time.insert( kvp );
       }
 
       // A common recv buffer for edges
@@ -618,37 +630,37 @@ void EventGraph::merge()
       for ( auto edge : edges_recv_buffer ) {
         message_order_edges.push_back( edge );
       }
-      std::cout << "Rank: " << rank 
-                << " received: " << edges_recv_buffer.size()
-                << " message order edges from rank: " << i 
-                << std::endl;
+      //  std::cout << "Rank: " << rank 
+      //            << " received: " << edges_recv_buffer.size()
+      //            << " message order edges from rank: " << i 
+      //            << std::endl;
       
       // Receive program order edges
       world.recv( i, program_order_edge_tag, edges_recv_buffer );
       for ( auto edge : edges_recv_buffer ) {
         program_order_edges.push_back( edge );
       }
-      std::cout << "Rank: " << rank 
-                << " received: " << edges_recv_buffer.size() 
-                << " program order edges from rank: " << i 
-                << std::endl;
+      //std::cout << "Rank: " << rank 
+      //          << " received: " << edges_recv_buffer.size() 
+      //          << " program order edges from rank: " << i 
+      //          << std::endl;
     }
     
-    std::cout << "Rank: " << rank 
-              << " total number of message order edges: " << message_order_edges.size() 
-              << " total number of program order edges: " << program_order_edges.size() 
-              << std::endl;
+    //std::cout << "Rank: " << rank 
+    //          << " total number of message order edges: " << message_order_edges.size() 
+    //          << " total number of program order edges: " << program_order_edges.size() 
+    //          << std::endl;
     std::unordered_map<uint8_t, std::string> type_to_name =
     {
       {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}
     };
-    for ( int i=0; i < vertex_ids.size(); ++i ) {
-      size_t vid = vertex_ids[i];
-      std::cout << "Vertex: " << vid
-                << " Type: " << type_to_name[ vertex_id_to_event_type[vid] ]
-                << " LTS: " << vertex_id_to_lts[ vid ]
-                << std::endl;
-    }
+    //for ( int i=0; i < vertex_ids.size(); ++i ) {
+    //  size_t vid = vertex_ids[i];
+    //  std::cout << "Vertex: " << vid
+    //            << " Type: " << type_to_name[ vertex_id_to_event_type[vid] ]
+    //            << " LTS: " << vertex_id_to_lts[ vid ]
+    //            << std::endl;
+    //}
 
   }
   else {
@@ -657,6 +669,7 @@ void EventGraph::merge()
     // Send vertex label maps
     world.send( 0, lts_map_tag, this->logical_timestamps );
     world.send( 0, event_type_map_tag, this->vertex_id_to_event_type );
+    world.send( 0, wall_time_map_tag, this->vertex_id_to_wall_time );
     // Send edges
     world.send( 0, message_order_edge_tag, this->message_order_edges );
     world.send( 0, program_order_edge_tag, this->program_order_edges );
@@ -682,13 +695,19 @@ void EventGraph::merge()
     std::cout << "Base graph constructed" << std::endl;
     // Add vertex attributes
     const char event_type_attr_name[16] = "event_type";
-    const char lts_attr_name[16] = "lts";
+    const char lts_attr_name[16]        = "logical_time";
+    const char wtime_attr_name[16]      = "wall_time";
     for ( auto vid : vertex_ids ) {
       uint8_t event_type = vertex_id_to_event_type[vid];
       const std::string event_type_str = type_to_name[event_type];
       size_t lts = vertex_id_to_lts[vid];
+      double wtime = vertex_id_to_wall_time[vid];
+      // Set event type vertex attribute
       igraph_rc = igraph_cattribute_VAS_set( &graph, event_type_attr_name, vid, event_type_str.c_str() );
+      // Set logical timestamp vertex attribute
       igraph_rc = igraph_cattribute_VAN_set( &graph, lts_attr_name, vid, lts );
+      // Set wall-time timestamp vertex attribute
+      igraph_rc = igraph_cattribute_VAN_set( &graph, wtime_attr_name, vid, wtime );
     }
     std::cout << "Attributes added" << std::endl;
     // Add edges
@@ -712,7 +731,7 @@ void EventGraph::merge()
   
     std::string trace_dir = this->config.get_trace_dirs()[0];
     std::stringstream ss;
-    ss << trace_dir << "/event_graph.graphml"; 
+    ss << trace_dir << "/event_graph.out"; 
     std::string output_path = ss.str();
 
     FILE* outfile;
