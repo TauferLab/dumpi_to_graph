@@ -14,11 +14,16 @@
 #include <fstream>
 #include <iostream>
 
+// Boost
 #include "boost/serialization/unordered_map.hpp" 
 #include "boost/mpi.hpp"
 
 // Igraph
 #include "igraph/igraph.h"
+
+// Internal
+#include "Logging.hpp"
+#include "Debug.hpp"
 
 // Super gross workaround for using size_t for scalar logical clock
 #if SIZE_MAX == UCHAR_MAX
@@ -35,7 +40,6 @@
    #error "Could not determine right MPI datatype for size_t"
 #endif
 
-#include "Debug.hpp"
 
 // Constructor must do the following:
 // - Disambiguate all vertex IDs from traces that this dumpi_to_graph process is
@@ -93,23 +97,6 @@ EventGraph::EventGraph( const Configuration& config,
     kvp.second->apply_vertex_id_offset( offset );
   }
   
-//#ifdef SANITY_CHECK
-//  comm_world.barrier();
-//  for ( int i=0; i<comm_world.size(); i++) {
-//    if ( comm_world.rank() == i ) {
-//      for ( auto kvp : this->rank_to_trace ) {
-//        std::cout << "Rank: " << comm_world.rank() 
-//                  << " handling trace rank: " << kvp.first << std::endl;
-//        kvp.second->report_event_seq();
-//        kvp.second->report_channel_to_send_seq();
-//        kvp.second->report_channel_to_recv_seq();
-//      }
-//      std::cout << std::endl;
-//    }
-//    comm_world.barrier();
-//  }
-//#endif
-
   // Merge data from the various traces this dumpi_to_graph process is handling
   for ( auto kvp : this->rank_to_trace ) {
     // Merge in channel map data
@@ -149,40 +136,6 @@ EventGraph::EventGraph( const Configuration& config,
     }
   }
 
-//#ifdef SANITY_CHECK
-//  comm_world.barrier();
-//  std::unordered_map<uint8_t, std::string> type_to_name =
-//  {
-//    {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}
-//  };
-//  for ( int i=0; i<comm_world.size(); i++) {
-//    if ( comm_world.rank() == i ) {
-//      std::cout << "Rank: " << comm_world.rank() << std::endl;
-//      for ( auto kvp : this->vertex_id_to_event_type ) {
-//        std::cout << "Vertex ID: " << kvp.first 
-//                  << ", Event Type: " << type_to_name.at( kvp.second ) 
-//                  << std::endl;
-//      }
-//      for ( auto kvp : this->channel_to_send_seq ) {
-//        std::cout << "Channel: " << kvp.first << ", Send Vertex IDs: ";
-//        for ( auto send : kvp.second ) {
-//          std::cout << " " << send;
-//        }
-//        std::cout << std::endl;
-//      }
-//      for ( auto kvp : this->channel_to_recv_seq ) {
-//        std::cout << "Channel: " << kvp.first << ", Recv Vertex IDs: ";
-//        for ( auto recv : kvp.second ) {
-//          std::cout << " " << recv;
-//        }
-//        std::cout << std::endl;
-//      }
-//      std::cout << std::endl;
-//    }
-//    comm_world.barrier();
-//  }
-//#endif
-
   comm_world.barrier();
 
   // Construct edges
@@ -190,19 +143,6 @@ EventGraph::EventGraph( const Configuration& config,
   this->make_message_order_edges();
   this->make_collective_edges();
 
-//#ifdef SANITY_CHECK
-//  for ( int i=0; i<comm_world.size(); i++) {
-//    if ( comm_world.rank() == i ) {
-//      comm_world.barrier(); 
-//      std::cout << std::endl;
-//      std::cout << "Message edges for rank: " << comm_world.rank() << std::endl;
-//      this->report_program_order_edges();
-//      this->report_message_order_edges();
-//      std::cout << std::endl;
-//      comm_world.barrier(); 
-//    }
-//  }
-//#endif
 }
 
 
@@ -246,15 +186,11 @@ void EventGraph::exchange_local_message_matching_data()
   auto channel_to_send_seq_copy = this->channel_to_send_seq;
 
   for ( auto kvp : channel_to_send_seq_copy ) {
-    
-    //std::cout << "Rank: " << rank << " handling channel: " << kvp.first << std::endl;
 
     // The rank of the receiving process in the traced application
     int dst = kvp.first.get_dst();
     // The dumpi_to_graph process managing that rank
     int owning_rank = this->config.lookup_owning_rank( dst );
-
-    //std::cout << "Rank that owns destination recv seq is: " << owning_rank << std::endl;
 
     // If this dumpi_to_graph process also owns the matching receive sequence,
     // we can determine the set of message edges for this channel without any
@@ -277,10 +213,8 @@ void EventGraph::exchange_local_message_matching_data()
       // Remove the channel from both maps
       // This simplifies the code for the exchange of message matching data for
       // send and recv sequences held on distinct dumpi_to_graph processes
-      //std::cout << "Size of channel map before erase: " << this->channel_to_send_seq.size() << std::endl;
       this->channel_to_send_seq.erase( kvp.first );
       this->channel_to_recv_seq.erase( kvp.first );
-      //std::cout << "Size of channel map after erase: " << this->channel_to_send_seq.size() << std::endl;
     }
   }
 }
@@ -430,18 +364,22 @@ void EventGraph::apply_scalar_logical_clock()
   mpi_rc = MPI_Comm_rank( MPI_COMM_WORLD, &rank );
   int initial_lts = 0; 
   int tick = 1;
-  
+ 
+#ifdef REPORT_PROGRESS
   std::cout << "Rank: " << rank << " applying logical clock" << std::endl;
+#endif
   
   for ( auto kvp : this->rank_to_trace ) {
     auto event_seq = kvp.second->get_event_seq();
     size_t n_vertices = event_seq.size();
     size_t vertex_id_offset = kvp.second->get_vertex_id_offset();
+#ifdef REPORT_PROGRESS
     std::cout << "Rank: " << rank
               << " handling trace rank: " << kvp.first
               << " with event sequence of length: " << n_vertices
               << " and vertex ID offset: " << vertex_id_offset
               << std::endl;
+#endif
     for ( int i=0; i<n_vertices; ++i ) {
       auto event_type = event_seq[i];
       size_t vertex_id = i + vertex_id_offset;
@@ -480,7 +418,7 @@ void EventGraph::apply_scalar_logical_clock()
           std::cout << "Rank: " << rank << " send vertex: " << vertex_id
                     << " local predecessor: " << local_pred_vertex_id
                     << " has no lts" << std::endl;
-          exit(0);
+          exit(1);
         }
         size_t local_pred_lts = this->logical_timestamps.at( local_pred_vertex_id );
         // Get my lts by incrementing local pred's
@@ -491,31 +429,14 @@ void EventGraph::apply_scalar_logical_clock()
         if ( search2 == this->vertex_id_to_channel.end() ) {
           std::cout << "Rank: " << rank << " send vertex: " << vertex_id
                     << " not mapped to channel" << std::endl;
-          exit(0);
+          exit(1);
         }
         
         Channel channel = this->vertex_id_to_channel.at( vertex_id );
-
         int dst = channel.get_dst();
         int tag = channel.get_tag();
-
         int owner = this->config.lookup_owning_rank( dst );
-        
-        //if ( owner != rank ) { 
-
-        //std::cout << "Rank: " << rank << " will send lts: " << lts 
-        //          << " in channel: " << channel << " to rank: " << dst << std::endl;
-
         mpi_rc = MPI_Send( &lts, 1, my_MPI_SIZE_T, dst, tag, MPI_COMM_WORLD );
-        //mpi_rc = MPI_Send( &lts, 1, my_MPI_SIZE_T, owner, tag, MPI_COMM_WORLD );
-        //}
-        //else {
-        //  //// can just set lts of receiver locally
-        //  //size_t receiver_vertex_id = this->sender_to_receiver.at( vertex_id );
-        //  //size_t receiver_local_pred = receiver_vertex_id - 1;
-
-        //  //size_t receiver_lts = std::max( 
-        //}
       }
       // Case 3: Vertex represents a recv
       // Assign it the max of its local and remote predecessors' logical 
@@ -538,21 +459,11 @@ void EventGraph::apply_scalar_logical_clock()
         
         int src = channel.get_src();
         int tag = channel.get_tag();
-        
         int owner = this->config.lookup_owning_rank( src );
-
         size_t remote_pred_lts = 0;
-        
-        
         mpi_rc = MPI_Recv( &remote_pred_lts, 1, my_MPI_SIZE_T, src, tag,
                            MPI_COMM_WORLD, MPI_STATUS_IGNORE );
-        //std::cout << "Rank: " << rank << " received sent clock: " << remote_pred_lts
-        //          << " in channel: " << channel << " from rank: " << src << std::endl;
-        //mpi_rc = MPI_Recv( &remote_pred_lts, 1, my_MPI_SIZE_T, owner, tag,
-        //                   MPI_COMM_WORLD, MPI_STATUS_IGNORE );
         size_t lts = std::max( local_pred_lts, remote_pred_lts ) + tick;
-        //std::cout << "Rank: " << rank << " setting lts of recv vertex: " << vertex_id
-        //          << " to: " << lts << std::endl;
         this->logical_timestamps.insert( { vertex_id, lts } );
 
       }
@@ -565,11 +476,8 @@ void EventGraph::apply_scalar_logical_clock()
         size_t lts = local_pred_lts + tick;
         this->logical_timestamps.insert( { vertex_id, lts } );
       }
-
-    }
-
-
-  }
+    } // Loop over vertex sequence for a single trace rank
+  } // Loop over all trace ranks managed by this dumpi_to_graph rank
 }
 
 
@@ -664,8 +572,6 @@ void EventGraph::merge_and_write()
     world.send( 0, program_order_edge_tag, this->program_order_edges );
   }
 
-  
-
   // Root constructs the igraph representation
   if ( rank == 0 ) {
     std::unordered_map<uint8_t, std::string> type_to_name =
@@ -673,7 +579,7 @@ void EventGraph::merge_and_write()
       {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}
     };
     int igraph_rc;
-    // Set up the igraph attribute handler 
+    // Turn on the igraph attribute handler 
     igraph_i_set_attribute_table(&igraph_cattribute_table);
     
     // Initialize the graph
@@ -681,7 +587,10 @@ void EventGraph::merge_and_write()
     igraph_t graph;
     // boolean parameter makes the graph directed
     igraph_rc = igraph_empty( &graph, n_vertices, true ); 
-    std::cout << "Base graph constructed" << std::endl;
+#ifdef REPORT_PROGRESS
+    std::cout << "Base igraph object constructed" << std::endl;
+#endif
+
     // Add vertex attributes
     const char event_type_attr_name[16] = "event_type";
     const char lts_attr_name[16]        = "logical_time";
@@ -702,7 +611,9 @@ void EventGraph::merge_and_write()
       // Set process ID vertex attribute
       igraph_rc = igraph_cattribute_VAN_set( &graph, pid_attr_name, vid, pid );
     }
-    std::cout << "Attributes added" << std::endl;
+#ifdef REPORT_PROGRESS
+    std::cout << "Vertex attributes added" << std::endl;
+#endif
     // Add edges
     igraph_vector_t edges;
     size_t n_edges = 2 * ( program_order_edges.size() + message_order_edges.size() );
@@ -724,11 +635,14 @@ void EventGraph::merge_and_write()
   
     std::string trace_dir = this->config.get_trace_dirs()[0];
     std::stringstream ss;
-    ss << trace_dir << "/event_graph.out"; 
+    ss << trace_dir << "/event_graph.graphml"; 
     std::string output_path = ss.str();
 
     FILE* outfile;
     outfile = fopen( output_path.c_str(), "w" );
+#ifdef REPORT_PROGRESS
+    std::cout << "Writing event graph..." << std::endl;
+#endif
     igraph_rc = igraph_write_graph_graphml( &graph, outfile, false );
     fclose( outfile );
   }
