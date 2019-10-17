@@ -18,6 +18,13 @@
 #include "Request.hpp"
 #include "Debug.hpp"
 
+
+void Trace::register_barrier( size_t event_vertex_id ) 
+{
+  // Update the sequence of event types
+  this->event_seq.push_back(4);
+}
+
 void Trace::register_initial_dumpi_timestamp( const dumpi_time& wall_time )
 {
   int32_t wall_time_start_sec = wall_time.start.sec;

@@ -467,7 +467,7 @@ void EventGraph::apply_scalar_logical_clock()
         this->logical_timestamps.insert( { vertex_id, lts } );
 
       }
-      // Case 4: Everything else. Just finalize for right now
+      // Case 4: Everything else. 
       else {
         // Get local predecessor's lts
         size_t local_pred_vertex_id = vertex_id - 1;

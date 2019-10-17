@@ -6,8 +6,10 @@ CXXFLAGS= -std=c++11 -O3
 
 INCLUDES= -I. 
 INCLUDES+= -I../include
-INCLUDES+= -I/g/g17/chapp1/repos/dumpi_to_graph/include/dumpi_to_graph/
-INCLUDES+= -I/g/g17/chapp1/repos/dumpi_to_graph/include/external/
+#INCLUDES+= -I/g/g17/chapp1/repos/dumpi_to_graph/include/dumpi_to_graph/
+#INCLUDES+= -I/g/g17/chapp1/repos/dumpi_to_graph/include/external/
+INCLUDES+= -I../include/dumpi_to_graph/
+INCLUDES+= -I../include/external/
 INCLUDES+= -I/g/g17/chapp1/repos/sst-dumpi/
 #INCLUDES+= -I/g/g17/chapp1/repos/boost_1_67_0/
 #INCLUDES+= -I/usr/tce/packages/boost/boost-1.69.0-mvapich2-2.3-gcc-8.1.0/include
@@ -37,6 +39,7 @@ SOURCES+= blocking_p2p_callbacks.cpp
 SOURCES+= nonblocking_p2p_callbacks.cpp
 SOURCES+= matching_function_callbacks.cpp
 SOURCES+= request_mutating_callbacks.cpp
+SOURCES+= blocking_collective_callbacks.cpp
 # Trace and event graph representation
 SOURCES+= Trace.cpp
 SOURCES+= Channel.cpp

@@ -45,6 +45,7 @@ public:
 
   void update_event_seq( size_t vertex_id );
 
+  void register_barrier( size_t event_vertex_id );
   void register_recv( const Channel& channel, size_t recv_vertex_id );
   void register_send( const Channel& channel, size_t send_vertex_id );
   void register_init();
