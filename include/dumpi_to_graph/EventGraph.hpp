@@ -5,9 +5,32 @@
 #include <unordered_map>
 #include <vector>
 #include <string>
+#include <utility>
+#include <functional>
 
+// Boost
+#include "boost/functional/hash.hpp"
+#include "boost/serialization/access.hpp"
+
+// Internal
 #include "Channel.hpp"
 #include "Trace.hpp"
+#include "CommunicatorManager.hpp" 
+
+struct pair_hash
+{
+  template<class T1, class T2>
+  std::size_t operator() (const std::pair<T1,T2> &pair) const 
+  {
+    std::size_t hash = 0;
+    auto h1 = std::hash<T1>{}(pair.first);
+    auto h2 = std::hash<T1>{}(pair.second);
+    boost::hash_combine( hash, h1 );
+    boost::hash_combine( hash, h2 );
+    return hash;
+  }
+};
+
 
 // Each dumpi_to_graph process will maintain one EventGraph object that contains
 // all of the event sequence and channel map data from the possibly several 
@@ -50,6 +73,9 @@ private:
   Configuration config;
   std::unordered_map<int,Trace*> rank_to_trace;
 
+  // Built up from each trace rank's individual view of the communicator data
+  CommunicatorManager comm_manager;
+
   // Data collected by merging corresponding data structures from all traces
   // this dumpi_to_graph is handling
   channel_map channel_to_send_seq;
@@ -58,6 +84,12 @@ private:
   std::unordered_map<size_t,uint8_t> vertex_id_to_event_type;
   std::unordered_map<size_t,double> vertex_id_to_wall_time;
   std::unordered_map<size_t,int> vertex_id_to_pid; 
+
+  //// Communicator properties
+  //std::unordered_map<int,size_t> comm_to_size;
+  //std::unordered_map<int,int> comm_to_parent;
+  //std::unordered_map<int, std::unordered_map<int,std::pair<int,int>>> comm_to_rankcolorkey;
+  //std::unordered_map<std::pair<int,int>, int, pair_hash> comm_rank_pair_to_global_rank;
 };
 
 

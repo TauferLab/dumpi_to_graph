@@ -17,6 +17,7 @@
 #include "Configuration.hpp"
 #include "Channel.hpp"
 #include "Request.hpp"
+#include "CommunicatorManager.hpp"
 
 class Trace
 {
@@ -24,12 +25,7 @@ public:
   Trace( Configuration config, 
          std::string trace_dir,
          int trace_rank,
-         int dumpi_to_graph_rank ) : 
-    config( config ),
-    trace_dir( trace_dir ),
-    trace_rank( trace_rank ),
-    dumpi_to_graph_rank( dumpi_to_graph_rank )
-    {}
+         int dumpi_to_graph_rank );
 
   std::string get_trace_dir() const;
   size_t get_next_vertex_id();
@@ -43,6 +39,12 @@ public:
   std::vector<double> get_wall_time_seq() const;
   std::unordered_map<size_t,Channel> get_vertex_id_to_channel() const;
 
+  //std::unordered_map<int, std::pair< std::unordered_map<int,int>,std::unordered_map<int,int>>> get_rank_translator() const;
+  //std::unordered_map<int,size_t> get_comm_to_size() const;
+  //std::unordered_map<int,int> get_comm_to_parent() const;
+  //std::unordered_map<int,std::unordered_map<int,std::pair<int,int>>> get_comm_to_rankcolorkey() const;
+  CommunicatorManager& get_comm_manager();
+
   void update_event_seq( size_t vertex_id );
 
   void register_barrier( size_t event_vertex_id );
@@ -50,6 +52,12 @@ public:
   void register_send( const Channel& channel, size_t send_vertex_id );
   void register_init();
   void register_finalize();
+  
+  //void register_communicator_rank( int comm_id, int rank );
+  void register_comm_split( int parent_comm_id,
+                            int new_comm_id, 
+                            int color, 
+                            int key );
 
   void register_initial_dumpi_timestamp( const dumpi_time& wall_time ); 
   void register_dumpi_timestamp( const dumpi_time& wall_time ); 
@@ -86,12 +94,17 @@ public:
   void report_id_to_request();
   void report_channel_to_send_seq();
   void report_channel_to_recv_seq();
+  //void report_comm_to_size() const;
+  //void report_comm_to_rankcolorkey() const;
 
 private:
 
   Configuration config;
 
   std::string trace_dir;
+
+  // Number of ranks in the global communicator of the traced run
+  int n_trace_ranks;
 
   // The rank of the MPI process in the traced application that generated the
   // trace file to which this trace object corresponds
@@ -136,6 +149,15 @@ private:
   std::unordered_map<int, Request> id_to_request;
   std::unordered_map<Channel, std::vector<size_t>, ChannelHash> channel_to_send_seq;
   std::unordered_map<Channel, std::vector<size_t>, ChannelHash> channel_to_recv_seq;
+
+  CommunicatorManager comm_manager; 
+  //// Mapping between communicator IDs and their sizes (i.e., # processes)
+  //std::unordered_map<int,size_t> comm_to_size;
+  //std::unordered_map<int,int> comm_to_parent;
+  //std::unordered_map<int, std::unordered_map<int,std::pair<int,int>>> comm_to_rankcolorkey;
+  //// Mapping between communicator IDs and rank-translation mappings
+  //std::unordered_map<int, std::pair< std::unordered_map<int,int>,std::unordered_map<int,int>>> rank_translator;
+
 
   // A function for completing requests during matching function registration
   void complete_request( int request_id );

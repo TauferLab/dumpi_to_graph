@@ -18,12 +18,17 @@
 #include "boost/serialization/unordered_map.hpp" 
 #include "boost/mpi.hpp"
 
+// DUMPI
+#include "dumpi/common/argtypes.h"
+#include "dumpi/common/constants.h"
+
 // Igraph
 #include "igraph/igraph.h"
 
 // Internal
 #include "Logging.hpp"
 #include "Debug.hpp"
+#include "CommunicatorManager.hpp" 
 
 // Super gross workaround for using size_t for scalar logical clock
 #if SIZE_MAX == UCHAR_MAX
@@ -55,6 +60,16 @@
 EventGraph::EventGraph( const Configuration& config,
                         const std::unordered_map<int,Trace*> rank_to_trace )
 {
+  // Establish MPI context
+  // Boost is used here for broadcasting std::unordered_maps 
+  // (rather than writing our own packing functions)
+  int mpi_rc, rank; 
+  mpi_rc = MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  boost::mpi::communicator comm_world;
+
+  std::cout << "Rank: " << rank << " starting event graph construction" << std::endl;
+  exit(0);
+
   // Set members
   this->config = config;
   this->rank_to_trace = rank_to_trace;
@@ -65,8 +80,6 @@ EventGraph::EventGraph( const Configuration& config,
     size_t vertex_count = kvp.second->get_final_vertex_id() + 1;
     trace_rank_to_vertex_count.insert( { kvp.first, vertex_count } );
   }
-  
-  boost::mpi::communicator comm_world;
 
   // Broadcast vertex counts
   std::unordered_map<int,size_t> all_trace_rank_to_vertex_count;
@@ -82,6 +95,7 @@ EventGraph::EventGraph( const Configuration& config,
       all_trace_rank_to_vertex_count.insert( { kvp.first, kvp.second } );
     }
   }
+
   // Calculate vertex ID offsets
   std::unordered_map<int,size_t> trace_rank_to_offset;
   for ( auto kvp : all_trace_rank_to_vertex_count ) {
@@ -134,14 +148,152 @@ EventGraph::EventGraph( const Configuration& config,
       this->vertex_id_to_wall_time.insert( { vertex_id, wall_time } );
       this->vertex_id_to_pid.insert( { vertex_id, pid } );
     }
+    //// Merge communicator size data
+    //auto trace_comm_to_size = kvp.second->get_comm_to_size();
+    //for ( auto kvp2 : trace_comm_to_size ) {
+    //  this->comm_to_size.insert( { kvp2.first, kvp2.second } );
+    //}
+    //// Merge communicator hierarchy data
+    //auto trace_comm_to_parent = kvp.second->get_comm_to_parent();
+    //for ( auto kvp2 : trace_comm_to_parent ) {
+    //  this->comm_to_parent.insert( { kvp2.first, kvp2.second } );
+    //}
+    //// Merge user-defined communicator data
+    //auto trace_comm_to_rankcolorkey = kvp.second->get_comm_to_rankcolorkey();
+    //for ( auto kvp2 : trace_comm_to_rankcolorkey ) {
+    //  this->comm_to_rankcolorkey.insert( { kvp2.first, kvp2.second } );
+    //}
   }
+
+
+  //// Get set of communicators we're working with
+  //std::vector<int> comm_ids;
+  //for ( auto kvp : this->comm_to_rankcolorkey ) {
+  //  auto comm_id = kvp.first;
+  //  comm_ids.push_back( comm_id );
+  //}
+  //std::sort( comm_ids.begin(), comm_ids.end() );
+
+  //// Merge user-defined communicator data across all dumpi_to_graph processes
+  //for ( auto comm_id : comm_ids ) {
+  //  auto rank_to_colorkey = this->comm_to_rankcolorkey.at( comm_id );
+  //  // Find max color in this communicator known locally
+  //  int max_color = 0;
+  //  for ( auto kvp : rank_to_colorkey ) {
+  //    auto color = kvp.second.first;
+  //    if ( color > max_color ) {
+  //      max_color = color;
+  //    }
+  //  }
+  //  //std::cout << "Rank: " << comm_world.rank() << " Comm ID: " << comm_id << " Max Color: " << max_color << std::endl;
+  //  // Find global max color via reduce
+  //  int mpi_rc;
+  //  int reduce_recv_buffer;
+  //  int reduce_send_buffer = max_color;
+  //  int count = 1;
+  //  int root = 0;
+  //  mpi_rc = MPI_Reduce( &reduce_send_buffer,
+  //                       &reduce_recv_buffer,
+  //                       count,
+  //                       MPI_INT,
+  //                       MPI_MAX,
+  //                       root,
+  //                       MPI_COMM_WORLD );
+  //  int bcast_buffer;
+  //  if ( comm_world.rank() == 0 ) {
+  //    bcast_buffer = reduce_recv_buffer;
+  //  }
+  //  mpi_rc = MPI_Bcast( &bcast_buffer,
+  //                      count,
+  //                      MPI_INT,
+  //                      root,
+  //                      MPI_COMM_WORLD );
+  //  int n_splits = bcast_buffer + 1;
+
+  //  //std::cout << "Rank: " << comm_world.rank() << " Comm ID: " << comm_id << " # splits: " << n_splits << std::endl;
+
+  //  int parent_comm_id = this->comm_to_parent.at( comm_id );
+  //  int parent_comm_size = this->comm_to_size.at( parent_comm_id );
+  //  int comm_size = parent_comm_size / n_splits;
+
+  //  // Update with size of current communicator
+  //  this->comm_to_size.insert( { comm_id, comm_size } );
+  //  
+  //  //std::cout << "Rank: " << comm_world.rank() << " Comm ID: " << comm_id << " Comm size:: " << comm_size << std::endl;
+
+  //  // Broadcast rank_to_colorkey contents
+  //  std::unordered_map<int,int> rank_to_key;
+  //  for ( int rank=0; rank<this->comm_to_size.at(DUMPI_COMM_WORLD); rank++ ) {
+  //    std::unordered_map<int,int> payload;
+  //    if ( comm_world.rank() == rank ) {
+  //      auto key = rank_to_colorkey.at(rank).second;
+  //      rank_to_key.insert( { rank, key } );
+  //      payload = rank_to_key;
+  //      boost::mpi::broadcast( comm_world, payload, rank );
+  //    }
+  //    else {
+  //      boost::mpi::broadcast( comm_world, payload, rank );
+  //      for ( auto kvp : payload ) {
+  //        rank_to_key.insert( { kvp.first, kvp.second } );
+  //      }
+  //    }
+  //  }
+
+  //  //if ( comm_world.rank() == 0 ) {
+  //  //  std::cout << "Communicator: " << comm_id << std::endl;
+  //  //  for ( auto kvp : rank_to_key ) {
+  //  //    std::cout << "Rank: " << kvp.first << " Key: " << kvp.second << std::endl;
+  //  //  }
+  //  //}
+
+  //  // Convert from keys to ranks
+  //  std::unordered_map<int,int> key_to_rank;
+  //  std::vector<int> keys;
+  //  for ( auto kvp : rank_to_key ) {
+  //    auto rank = kvp.first;
+  //    auto key = kvp.second;
+  //    key_to_rank.insert( { key, rank } );
+  //    keys.push_back( key );
+  //  }
+  //  std::sort( keys.begin() , keys.end() );
+
+  //  //std::cout << "Comm ID: " << comm_id << " # keys: " << keys.size() << std::endl;
+
+  //  int curr_within_comm_rank = 0;
+  //  for ( auto key : keys ) {
+  //    //auto pair = std::make_pair( comm_id, curr_within_comm_rank );
+  //    auto global_rank = key_to_rank.at( key );
+  //    auto pair = std::make_pair( comm_id, global_rank );
+  //    auto local_rank = curr_within_comm_rank; 
+  //    this->comm_rank_pair_to_global_rank.insert( { pair, local_rank } );
+  //    curr_within_comm_rank++;
+  //  }
+  //}
+  //
+  //for ( int i=0; i<16; i++ ) {
+  //  if ( comm_world.rank() == i) {
+  //    for ( auto kvp : this->comm_rank_pair_to_global_rank ) {
+  //      auto comm_id = kvp.first.first;
+  //      auto comm_rank = kvp.first.second;
+  //      auto global_rank = kvp.second;
+  //      std::cout << "( Comm: " << comm_id << ", Global Rank: " << comm_rank << " ) -->"
+  //                << " Local Rank: " << global_rank << std::endl;
+  //    }
+  //  }
+  //  comm_world.barrier();
+  //}
+
+  //exit(0);
 
   comm_world.barrier();
 
   // Construct edges
   this->make_program_order_edges();
+  std::cout << "Rank: " << rank << " constructed program order edges" << std::endl;
   this->make_message_order_edges();
+  std::cout << "Rank: " << rank << " constructed message order edges" << std::endl;
   this->make_collective_edges();
+  std::cout << "Rank: " << rank << " constructed collectives edges" << std::endl;
 
 }
 
@@ -196,7 +348,6 @@ void EventGraph::exchange_local_message_matching_data()
     // we can determine the set of message edges for this channel without any
     // communication between dumpi_to_graph processes
     if ( owning_rank == rank ) {  
-
       // Get the matching send and recv sequences for this channel
       auto send_seq = kvp.second;
       auto recv_seq = this->channel_to_recv_seq.at( kvp.first );

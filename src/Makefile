@@ -46,6 +46,7 @@ SOURCES+= Trace.cpp
 SOURCES+= Channel.cpp
 SOURCES+= Request.cpp
 SOURCES+= EventGraph.cpp
+SOURCES+= CommunicatorManager.cpp
 # Utilities
 SOURCES+= Utilities.cpp
 SOURCES+= Debug.cpp
