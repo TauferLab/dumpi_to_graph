@@ -63,11 +63,67 @@ EventGraph::EventGraph( const Configuration& config,
   // Establish MPI context
   // Boost is used here for broadcasting std::unordered_maps 
   // (rather than writing our own packing functions)
-  int mpi_rc, rank; 
-  mpi_rc = MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  int mpi_rc, global_rank, n_procs; 
+  mpi_rc = MPI_Comm_rank( MPI_COMM_WORLD, &global_rank );
+  mpi_rc = MPI_Comm_size( MPI_COMM_WORLD, &n_procs );
   boost::mpi::communicator comm_world;
 
-  std::cout << "Rank: " << rank << " starting event graph construction" << std::endl;
+  std::cout << "Rank: " << global_rank 
+            << " starting event graph construction" << std::endl;
+
+  // Since this dumpi_to_graph process may be managing multiple trace ranks, we
+  // need to first merge all of their communicator data locally, then merge 
+  // across dumpi_to_graph processes, then finally broadcast the unified view of
+  // communicators 
+  CommunicatorManager comm_manager;
+  // Aggregate from all locally held comm_managers
+  for ( auto kvp : rank_to_trace ) {
+    auto trace_rank = kvp.first;
+    auto trace_ptr = kvp.second;
+    auto trace_comm_manager = trace_ptr->get_comm_manager();
+    //std::cout << "Rank: " << global_rank 
+    //          << " Aggregating comm_manager of trace rank: " << trace_rank
+    //          << std::endl;
+    comm_manager.aggregate( trace_comm_manager );
+  }
+  // Collect all remotely held comm_managers
+  std::vector<CommunicatorManager> remote_comm_managers;
+  for ( int rank=0; rank < n_procs; rank++ ) {
+    // If it's my rank, broadcast my comm manager
+    CommunicatorManager payload;
+    if ( global_rank == rank ) {
+      payload = comm_manager; 
+      boost::mpi::broadcast( comm_world, payload, rank );
+    } 
+    // If not, receive and aggregate
+    else {
+      boost::mpi::broadcast( comm_world, payload, rank );
+      //if ( global_rank == 7 ) {
+      //  std::cout << "My comm manager" << std::endl;
+      //  comm_manager.print();
+      //  std::cout << "Comm manager received from rank: " << rank << std::endl;
+      //  payload.print(); 
+      //  exit(0);
+      //}
+      remote_comm_managers.push_back( payload );     
+    }
+  }
+  // Aggregate the data held in the received comm managers
+  for ( auto cm : remote_comm_managers ) {
+    comm_manager.aggregate( cm );
+  }
+
+  // Now each dumpi_to_graph process has a CommunicatorManager with enough data
+  // to calculate the size each communicator. Specifically, the size of a 
+  // communicator is the size of its parent divided by the number of distinct 
+  // colors in the MPI_Comm_split call that constructed it
+  comm_manager.calculate_comm_sizes(); 
+
+  // Sanity check
+  if ( global_rank == 7 ) {
+    comm_manager.print(); 
+  }
+
   exit(0);
 
   // Set members
@@ -289,11 +345,14 @@ EventGraph::EventGraph( const Configuration& config,
 
   // Construct edges
   this->make_program_order_edges();
-  std::cout << "Rank: " << rank << " constructed program order edges" << std::endl;
+  std::cout << "Rank: " << global_rank 
+            << " constructed program order edges" << std::endl;
   this->make_message_order_edges();
-  std::cout << "Rank: " << rank << " constructed message order edges" << std::endl;
+  std::cout << "Rank: " << global_rank 
+            << " constructed message order edges" << std::endl;
   this->make_collective_edges();
-  std::cout << "Rank: " << rank << " constructed collectives edges" << std::endl;
+  std::cout << "Rank: " << global_rank 
+            << " constructed collectives edges" << std::endl;
 
 }
 
