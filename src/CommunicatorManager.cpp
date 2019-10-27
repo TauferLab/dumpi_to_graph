@@ -223,26 +223,5 @@ void CommunicatorManager::print() const
                 << ", Key: " << key << std::endl;
     }
   }
-
-  //for ( auto kvp : comm_to_rank_to_color ) {
-  //  auto comm_id = kvp.first;
-  //  auto rank_to_color = kvp.second;
-  //  std::cout << "Comm ID: " << comm_id << std::endl;
-  //  for ( auto rank_color : rank_to_color ) {
-  //    auto rank = rank_color.first;
-  //    auto color = rank_color.second;
-  //    std::cout << "\tRank: " << rank << ", Color: " << color << std::endl;
-  //  }
-  //}
-  //for ( auto kvp : comm_to_rank_to_key ) {
-  //  auto comm_id = kvp.first;
-  //  auto rank_to_key = kvp.second;
-  //  std::cout << "Comm ID: " << comm_id << std::endl;
-  //  for ( auto rank_key : rank_to_key ) {
-  //    auto rank = rank_key.first;
-  //    auto key = rank_key.second;
-  //    std::cout << "\tRank: " << rank << ", Key: " << key << std::endl;
-  //  }
-  //}
 }
 

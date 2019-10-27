@@ -54,6 +54,13 @@ public:
 
 
 private:
+  // Makes sure each dumpi_to_graph process has the same view of any 
+  // user-defined communicators 
+  CommunicatorManager exchange_user_defined_comm_data(); 
+  
+  // Makes sure each vertex has a unique ID
+  void disambiguate_vertex_ids();
+
   void make_program_order_edges();
   void make_message_order_edges();
   void exchange_local_message_matching_data();
