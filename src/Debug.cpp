@@ -61,7 +61,7 @@ bool validate_trace( Trace trace )
   for ( auto kvp : channel_to_send_seq ) {
     assert( contains_no_invalid_vertex_ids( kvp.second ) );
   }
-  for ( auto kvp : channel_to_send_seq ) {
+  for ( auto kvp : channel_to_recv_seq ) {
     assert( contains_no_invalid_vertex_ids( kvp.second ) );
   }
 
