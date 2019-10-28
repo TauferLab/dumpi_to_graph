@@ -4,9 +4,13 @@
 #include <string>
 #include <sstream>
 #include <stdexcept>
+#include <vector>
 
-// DUMPI-specific
+// DUMPI
 #include "dumpi/common/argtypes.h" 
+
+// Boost
+#include <boost/functional/hash.hpp> 
 
 int trace_file_to_rank( const std::string trace_file );
 
@@ -29,6 +33,25 @@ void validate_dumpi_event( T event_ptr,
     throw std::runtime_error( ss.str() );
   }
 }
+
+struct rank_seq_hash 
+{
+template <typename RankType, typename ElemType>
+  std::size_t operator () (const std::pair<RankType,std::vector<ElemType>> &p) const 
+  {
+    std::size_t hash = 0;
+    // hash the vector elements
+    ElemType current_value;
+    for (std::size_t i=0; i<p.second.size(); ++i) {
+      current_value = p.second[i];
+      boost::hash_combine( hash, boost::hash_value( current_value ) );
+    }
+    // hash the rank
+    auto rank_hash = boost::hash_value( p.first );
+    boost::hash_combine( hash, rank_hash );
+    return hash;
+  }
+};
 
 
 #endif // D2G_UTILITIES
