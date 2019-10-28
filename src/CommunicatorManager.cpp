@@ -34,27 +34,75 @@ struct pair_hash {
 
 
 
-int CommunicatorManager::sender_global_rank_to_comm_rank( Channel channel )
+int CommunicatorManager::sender_comm_rank_to_global_rank( Channel channel )
 {
-  //auto rank_to_key = comm_to_rank_to_key.at( comm_id );
-  //auto key = rank_to_key.at( global_rank );
-  //std::vector<int> keys;
-  //for ( auto kvp : rank_to_key ) {
-  //  keys.push_back( kvp.second );
-  //}
-  //std::sort( keys.begin(), keys.end() );
-  //int comm_rank;
-  //for ( int i=0; i<keys.size(); i++ ) {
-  //  if ( keys[i] == key ) {
-  //    comm_rank = i;
-  //  }
-  //}
-  //std::cout << "Translated global rank: " << global_rank 
-  //          << " to comm rank: " << comm_rank
+  // Unpack channel
+  auto sender_comm_rank     = channel.get_src();
+  auto receiver_global_rank = channel.get_dst();
+  auto comm_id              = channel.get_comm();
+
+  // Need to find out which process group this communication occured in, so
+  // we look up the "color" using the global rank of the sender
+  auto rank_to_color = comm_to_rank_to_color.at( comm_id );
+  auto color         = rank_to_color.at( receiver_global_rank );
+
+  // 
+  std::set<int> colors;
+  for ( auto kvp : rank_to_color ) {
+    auto color = kvp.second;
+    colors.insert( color );
+  }
+  int comm_rank_subrange_idx = 0;
+  int i = 0;
+  for ( auto curr_color : colors ) {
+    if ( curr_color == color ) {
+      comm_rank_subrange_idx = i;
+      break;
+    }
+    i++;
+  }
+  auto comm_size = comm_to_size.at( comm_id );
+  
+  auto global_rank_to_key = comm_to_rank_to_key.at( comm_id );
+
+  std::vector<int> keys;
+  for ( auto kvp : global_rank_to_key ) {
+    auto key = kvp.second;
+    keys.push_back( key );
+  }
+  std::sort( keys.begin(), keys.end() );
+
+  int key_idx = comm_size * comm_rank_subrange_idx + sender_comm_rank;
+  
+  auto key = keys[ key_idx ];
+
+  //std::cout << "Translating comm rank: " << receiver_comm_rank 
+  //          << " in comm: " << comm_id 
+  //          << " color: " << color
+  //          << " subrange size: " << comm_size
+  //          << " subrange idx: " << comm_rank_subrange_idx
+  //          << " key idx: " << key_idx
+  //          << " key: " << key
+  //          << std::endl;
+
+  std::unordered_map<int,int> key_to_global_rank;
+  for ( auto kvp : global_rank_to_key ) {
+    auto curr_key = kvp.second;
+    auto curr_rank = kvp.first;
+    auto curr_color = rank_to_color.at( curr_rank );
+    if ( curr_color == color ) {
+      key_to_global_rank.insert( { curr_key, curr_rank } );
+    }
+  }
+
+  auto sender_global_rank = key_to_global_rank.at( key );
+
+  //std::cout << "Translated comm rank: " << sender_comm_rank 
+  //          << " to global rank: " << sender_global_rank
   //          << " in comm: " << comm_id
   //          << std::endl;
-  int comm_rank = 0;
-  return comm_rank; 
+
+  return sender_global_rank; 
 }
 
 int CommunicatorManager::receiver_comm_rank_to_global_rank( Channel channel )
@@ -85,11 +133,8 @@ int CommunicatorManager::receiver_comm_rank_to_global_rank( Channel channel )
     i++;
   }
   auto comm_size = comm_to_size.at( comm_id );
-  //int n_subranges = colors.size();
-  //int comm_rank_subrange_size = comm_size / n_subranges;
   
   auto global_rank_to_key = comm_to_rank_to_key.at( comm_id );
-
 
   std::vector<int> keys;
   for ( auto kvp : global_rank_to_key ) {
@@ -123,40 +168,11 @@ int CommunicatorManager::receiver_comm_rank_to_global_rank( Channel channel )
 
   auto global_rank = key_to_global_rank.at( key );
 
-
-  //int global_rank = 0;
-
-  //std::unordered_map<int,int> key_to_rank;
-  //std::vector<int> keys;
-  //for ( auto kvp : global_rank_to_key ) {
-  //  auto rank = kvp.first;
-  //  auto key  = kvp.second;
-  //  keys.push_back( key );
-  //  auto search = key_to_rank.find( key );
-  //  if ( search == key_to_rank.end() ) {
-  //    key_to_rank.insert( { key, rank } );
-  //  }
-  //  else {
-  //    std::stringstream ss;
-  //    ss << "Trying to overwrite key-rank mapping -"
-  //       << " key = " << key
-  //       << " old rank = " << search->second
-  //       << " new rank = " << rank
-  //       << std::endl;
-  //    throw std::runtime_error( ss.str() );
-  //  }
-  //}
-  //std::sort( keys.begin(), keys.end() );
-  //auto key = keys[ comm_rank ];  
-  //auto global_rank = key_to_rank.at( key );
-  std::cout << "Translated comm rank: " << receiver_comm_rank 
-            << " to global rank: " << global_rank
-            << " in comm: " << comm_id
-            << std::endl;
+  //std::cout << "Translated comm rank: " << receiver_comm_rank 
+  //          << " to global rank: " << global_rank
+  //          << " in comm: " << comm_id
+  //          << std::endl;
   
-  //exit(0);
-
-
   return global_rank;
 }
 

@@ -22,7 +22,7 @@ public:
   // Used during message matching data exchange to translate from the 
   // communicator-specific ranks observed in the trace data to the global ranks
   // we should actually send to
-  int sender_global_rank_to_comm_rank( Channel channel ); 
+  int sender_comm_rank_to_global_rank( Channel channel ); 
   int receiver_comm_rank_to_global_rank( Channel channel ); 
   // Function to calculate communicator sizes once all dumpi_to_graph processes
   // have sufficient information to do so

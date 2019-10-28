@@ -406,9 +406,9 @@ void EventGraph::exchange_message_matching_data_for_communicator( int current_co
     }
   }
   
-  if ( current_comm_id == 4 ) {
-    exit(0);
-  }
+  //if ( current_comm_id == 4 ) {
+  //  exit(0);
+  //}
 
   //std::cout << "Rank: " << rank 
   //          << " posted recvs for communicator: " << DUMPI_COMM_WORLD 
@@ -420,12 +420,12 @@ void EventGraph::exchange_message_matching_data_for_communicator( int current_co
     if ( comm_id == current_comm_id ) {
       int dst = kvp.first.get_src(); 
       if ( comm_id != DUMPI_COMM_WORLD ) {
-        dst = this->comm_manager.sender_global_rank_to_comm_rank( kvp.first );
+        dst = this->comm_manager.sender_comm_rank_to_global_rank( kvp.first );
         
-        Channel test_channel = { 12, 0, 31, 4 };
-        if ( kvp.first == test_channel ) {
-          std::cout << "dst translated to: " << dst << std::endl;
-        }
+        //Channel test_channel = { 12, 0, 31, 4 };
+        //if ( kvp.first == test_channel ) {
+        //  std::cout << "dst translated to: " << dst << std::endl;
+        //}
 
       }
       int tag = kvp.first.get_tag();
@@ -447,6 +447,12 @@ void EventGraph::exchange_message_matching_data_for_communicator( int current_co
                          MPI_COMM_WORLD );
     }
   }
+
+  //if ( current_comm_id == 4 ) {
+  //  exit(0);
+  //}
+
+
   //std::cout << "Rank: " << rank 
   //          << " posted sends for communicator: " << DUMPI_COMM_WORLD 
   //          << std::endl;
