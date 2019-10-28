@@ -134,6 +134,7 @@ int main(int argc, char** argv)
                 << std::endl;
     }
 #endif
+    mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
 
 #ifdef SANITY_CHECK
     // Do a big sanity check on all of the trace contents
@@ -143,7 +144,8 @@ int main(int argc, char** argv)
     //std::cout << "Rank: " << dumpi_to_graph_rank 
     //          << " traces validated" << std::endl;
 #endif
-   
+    mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
+    
     //std::cout << "Rank: " << dumpi_to_graph_rank << " exiting" << std::endl;
     //exit(0);
     

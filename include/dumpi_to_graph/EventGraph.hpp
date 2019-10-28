@@ -61,11 +61,19 @@ private:
   // Makes sure each vertex has a unique ID
   void disambiguate_vertex_ids();
 
+  // Merges trace data from all trace ranks that this dumpi_to_graph process
+  // is handling
+  void merge_trace_data(); 
+
   void make_program_order_edges();
   void make_message_order_edges();
+  void make_collective_edges();
+
+  // Helpers for point-to-point message edge construction
   void exchange_local_message_matching_data();
   void exchange_remote_message_matching_data();
-  void make_collective_edges();
+  void exchange_message_matching_data_for_communicator( int comm_id );
+
 
   // Data structures that define the event graph itself 
   // (or at least this dumpi_to_graph process's partial view of the event graph)
