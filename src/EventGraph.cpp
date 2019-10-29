@@ -29,6 +29,7 @@
 #include "Logging.hpp"
 #include "Debug.hpp"
 #include "CommunicatorManager.hpp" 
+#include "Utilities.hpp"
 
 // Super gross workaround for using size_t for scalar logical clock
 #if SIZE_MAX == UCHAR_MAX
@@ -79,18 +80,21 @@ EventGraph::EventGraph( const Configuration& config,
   this->rank_to_trace = rank_to_trace;
   this->comm_manager = exchange_user_defined_comm_data();
   
-  //// Sanity check user-defined comm data
-  //if ( global_rank == 12 ) {
-  //  this->comm_manager.print(); 
-  //}
-  //exit(0);
+  // Sanity check user-defined comm data
+  if ( global_rank == 12 ) {
+    this->comm_manager.print(); 
+  }
+  
+  exit(0);
 
   disambiguate_vertex_ids(); 
+  
+  comm_world.barrier();
 
   merge_trace_data();
   
 
-  comm_world.barrier();
+  //comm_world.barrier();
   //for ( auto kvp : channel_to_send_seq ) {
   //  std::cout << "Rank: " << global_rank
   //            << " Channel: " << kvp.first
@@ -103,7 +107,7 @@ EventGraph::EventGraph( const Configuration& config,
   //            << " # Recvs: " << kvp.second.size()
   //            << std::endl;
   //}
-  //comm_world.barrier();
+  comm_world.barrier();
   //exit(0);
 
   // Construct edges
@@ -123,6 +127,91 @@ EventGraph::EventGraph( const Configuration& config,
             << " constructed collectives edges" << std::endl;
 #endif
 }
+
+CommunicatorManager EventGraph::exchange_user_defined_comm_data()
+{
+  // Establish MPI context
+  // Boost is used here for broadcasting std::unordered_maps 
+  // (rather than writing our own packing functions)
+  int mpi_rc, global_rank, n_procs; 
+  mpi_rc = MPI_Comm_rank( MPI_COMM_WORLD, &global_rank );
+  mpi_rc = MPI_Comm_size( MPI_COMM_WORLD, &n_procs );
+  boost::mpi::communicator comm_world;
+
+  // Since this dumpi_to_graph process may be managing multiple trace ranks, we
+  // need to first merge all of their communicator data locally, then merge 
+  // across dumpi_to_graph processes, then finally broadcast the unified view of
+  // communicators 
+  CommunicatorManager comm_manager;
+  // Aggregate from all locally held comm_managers
+  for ( auto kvp : rank_to_trace ) {
+    auto trace_rank = kvp.first;
+    auto trace_ptr = kvp.second;
+    auto trace_comm_manager = trace_ptr->get_comm_manager();
+    comm_manager.aggregate( trace_comm_manager );
+  }
+  
+  std::cout << "Rank: " << global_rank << " broacasting communicator data" << std::endl;
+  
+  // Collect all remotely held comm_managers
+  std::vector<CommunicatorManager> remote_comm_managers;
+  for ( int rank=0; rank < n_procs; rank++ ) {
+    // If it's my rank, broadcast my comm manager
+    CommunicatorManager payload;
+    if ( global_rank == rank ) {
+      payload = comm_manager; 
+      boost::mpi::broadcast( comm_world, payload, rank );
+    } 
+    // If not, receive and aggregate
+    else {
+      boost::mpi::broadcast( comm_world, payload, rank );
+      remote_comm_managers.push_back( payload );     
+    }
+  }
+
+  std::cout << "Rank: " << global_rank << " received all communicator data" << std::endl;
+
+  // Aggregate the data held in the received comm managers
+  for ( auto cm : remote_comm_managers ) {
+    comm_manager.aggregate( cm );
+  }
+
+  // Now each dumpi_to_graph process has a CommunicatorManager with enough data
+  // to calculate the size each communicator. Specifically, the size of a 
+  // communicator is the size of its parent divided by the number of distinct 
+  // colors in the MPI_Comm_split call that constructed it
+  comm_manager.calculate_comm_sizes(); 
+
+  comm_manager.calculate_global_rank_to_comm_rank_mapping();
+
+  // Maps from a pair of (comm_rank, color_seq) to global_rank
+  std::unordered_map<std::pair<int,std::vector<int>>,int,rank_seq_hash> translator;
+  auto comm_to_rank_to_color = comm_manager.get_comm_to_rank_to_color();
+  auto comm_to_rank_to_key = comm_manager.get_comm_to_rank_to_key();
+  for ( auto kvp : comm_to_rank_to_color ) {
+    auto comm_id = kvp.first;
+    auto global_rank_to_color = kvp.second;
+    auto global_rank_to_key = comm_to_rank_to_key.at( comm_id );
+    for ( auto kvp2 : global_rank_to_color ) {
+      auto global_rank = kvp2.first;
+      auto comm_rank = comm_manager.get_comm_rank( comm_id, global_rank );
+      auto color_seq = comm_manager.get_color_seq( global_rank );
+      auto key = std::make_pair( comm_rank, color_seq );
+      translator.insert( { key, global_rank } );
+    }
+  }
+
+  comm_manager.set_translator( translator );
+
+  return comm_manager; 
+}
+
+
+
+
+
+
+
 
 void EventGraph::merge_trace_data()
 {
@@ -214,56 +303,16 @@ void EventGraph::disambiguate_vertex_ids()
   }
 }
 
-CommunicatorManager EventGraph::exchange_user_defined_comm_data()
-{
-  // Establish MPI context
-  // Boost is used here for broadcasting std::unordered_maps 
-  // (rather than writing our own packing functions)
-  int mpi_rc, global_rank, n_procs; 
-  mpi_rc = MPI_Comm_rank( MPI_COMM_WORLD, &global_rank );
-  mpi_rc = MPI_Comm_size( MPI_COMM_WORLD, &n_procs );
-  boost::mpi::communicator comm_world;
 
-  // Since this dumpi_to_graph process may be managing multiple trace ranks, we
-  // need to first merge all of their communicator data locally, then merge 
-  // across dumpi_to_graph processes, then finally broadcast the unified view of
-  // communicators 
-  CommunicatorManager comm_manager;
-  // Aggregate from all locally held comm_managers
-  for ( auto kvp : rank_to_trace ) {
-    auto trace_rank = kvp.first;
-    auto trace_ptr = kvp.second;
-    auto trace_comm_manager = trace_ptr->get_comm_manager();
-    comm_manager.aggregate( trace_comm_manager );
-  }
-  // Collect all remotely held comm_managers
-  std::vector<CommunicatorManager> remote_comm_managers;
-  for ( int rank=0; rank < n_procs; rank++ ) {
-    // If it's my rank, broadcast my comm manager
-    CommunicatorManager payload;
-    if ( global_rank == rank ) {
-      payload = comm_manager; 
-      boost::mpi::broadcast( comm_world, payload, rank );
-    } 
-    // If not, receive and aggregate
-    else {
-      boost::mpi::broadcast( comm_world, payload, rank );
-      remote_comm_managers.push_back( payload );     
-    }
-  }
-  // Aggregate the data held in the received comm managers
-  for ( auto cm : remote_comm_managers ) {
-    comm_manager.aggregate( cm );
-  }
 
-  // Now each dumpi_to_graph process has a CommunicatorManager with enough data
-  // to calculate the size each communicator. Specifically, the size of a 
-  // communicator is the size of its parent divided by the number of distinct 
-  // colors in the MPI_Comm_split call that constructed it
-  comm_manager.calculate_comm_sizes(); 
 
-  return comm_manager; 
-}
+
+//////////////// EDGE CONSTRUCTION //////////////////////////
+
+
+
+
+
 
 // Constructs all program order edges 
 void EventGraph::make_program_order_edges()
@@ -474,10 +523,11 @@ void EventGraph::exchange_remote_message_matching_data()
   int mpi_rc, rank;
   mpi_rc = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   
-  exchange_message_matching_data_for_communicator( DUMPI_COMM_WORLD );
-  exchange_message_matching_data_for_communicator( 4 );
+  //exchange_message_matching_data_for_communicator( DUMPI_COMM_WORLD );
+  //exchange_message_matching_data_for_communicator( 4 );
+  ////exchange_message_matching_data_for_communicator( 5 );
 
-  exit(0);
+  //exit(0);
 //  // First we exchange all of the recv vertex IDs for messages in the global
 //  // communicator
 //  int n_recv_reqs = 0;
@@ -574,149 +624,149 @@ void EventGraph::exchange_remote_message_matching_data()
 
 
 
-//  //////////////////////////// OLD IMPLEMENTATION //////////////////////////////
-//
-//
-//  int n_recv_reqs = this->channel_to_send_seq.size();
-//  MPI_Request recv_reqs[ n_recv_reqs ];
-//  int recv_req_idx = 0;
-//
-//  // We will receive all remotely held recv sequences into a single contiguous
-//  // array. We determine the size of that array and a mapping between the 
-//  // relevant channels and corresponding offsets into the array here
-//  std::unordered_map<Channel, int, ChannelHash> channel_to_offset;
-//  int n_recv_vertex_ids = 0;
-//  for ( auto kvp : this->channel_to_send_seq ) {
-//    channel_to_offset.insert( { kvp.first, n_recv_vertex_ids } );
-//    n_recv_vertex_ids += kvp.second.size();
-//#ifdef PRINT_VERBOSE_PROGRESS
-//    std::cout << "sends: "
-//              << kvp.first << ": "
-//              << kvp.second.size()
-//              << std::endl;
+  //////////////////////////// OLD IMPLEMENTATION //////////////////////////////
+
+
+  int n_recv_reqs = this->channel_to_send_seq.size();
+  MPI_Request recv_reqs[ n_recv_reqs ];
+  int recv_req_idx = 0;
+
+  // We will receive all remotely held recv sequences into a single contiguous
+  // array. We determine the size of that array and a mapping between the 
+  // relevant channels and corresponding offsets into the array here
+  std::unordered_map<Channel, int, ChannelHash> channel_to_offset;
+  int n_recv_vertex_ids = 0;
+  for ( auto kvp : this->channel_to_send_seq ) {
+    channel_to_offset.insert( { kvp.first, n_recv_vertex_ids } );
+    n_recv_vertex_ids += kvp.second.size();
+#ifdef PRINT_VERBOSE_PROGRESS
+    std::cout << "sends: "
+              << kvp.first << ": "
+              << kvp.second.size()
+              << std::endl;
+#endif
+  }
+
+#ifdef PRINT_VERBOSE_PROGRESS
+  for ( auto kvp : this->channel_to_recv_seq ) {
+    std::cout << "recvs: " 
+              << kvp.first << ": "
+              << kvp.second.size()
+              << std::endl;
+  }
+#endif
+
+  //exit(0); 
+
+//#ifdef VERBOSE_PROGRESS
+//  std::cout << "Rank: " << rank << " in function: " << __func__ << " "
+//            << " # recv requests to post is: " << n_recv_reqs
+//            << " # recv vertex IDs to receive is: " << n_recv_vertex_ids
+//            << std::endl;
 //#endif
-//  }
-//
-//#ifdef PRINT_VERBOSE_PROGRESS
-//  for ( auto kvp : this->channel_to_recv_seq ) {
-//    std::cout << "recvs: " 
-//              << kvp.first << ": "
-//              << kvp.second.size()
-//              << std::endl;
-//  }
-//#endif
-//
-//  //exit(0); 
-//
-////#ifdef VERBOSE_PROGRESS
-////  std::cout << "Rank: " << rank << " in function: " << __func__ << " "
-////            << " # recv requests to post is: " << n_recv_reqs
-////            << " # recv vertex IDs to receive is: " << n_recv_vertex_ids
-////            << std::endl;
-////#endif
-//
-//  // The shared receive buffer that will contain all of the recv vertex IDs from
-//  // remote dumpi_to_graph processes
-//  int recv_buffer[ n_recv_vertex_ids ]; 
-//
-//  // Loop over our send sequences and post a receive for each matching recv
-//  // sequence at the appropriate offset
-//  for ( auto kvp : this->channel_to_send_seq ) {
-//    // The trace rank of the receiver
-//    int src = kvp.first.get_dst();
-//    // The dumpi_to_graph process we need to get the matching recv sequence from
-//    int owner = this->config.lookup_owning_rank( src );
-//    // The tag of the message
-//    int tag = kvp.first.get_tag();
-//    // Offset into the recv buffer
-//    int recv_buffer_offset = channel_to_offset.at( kvp.first );
-//    // Number of recv vertex IDs we need to receive
-//    int n_elements = kvp.second.size();
-//
-//    int comm = kvp.first.get_comm();
-//
-//#ifdef SANITY_CHECK
-//    // This should never happen if the local message matching data exchange has
-//    // executed (properly), but no amount of paranoia is excessive in the realm
-//    // of MPI applications
-//    assert( owner != rank );
-//#endif
-//
-//    // Actually post the receive
-//    // FIXME: Right now we do all of these exchanges in MPI_COMM_WORLD, but we 
-//    // should probably mirror the communicators of the traced application. 
-//    // Not a high priority right now since our traced applications
-//    // of interest (e.g., Enzo) do everything in MPI_COMM_WORLD themselves.
-//    mpi_rc = MPI_Irecv( &recv_buffer[ recv_buffer_offset ],
-//                        n_elements,
-//                        MPI_INT, 
-//                        owner,
-//                        tag,
-//                        MPI_COMM_WORLD,
-//                        &recv_reqs[ recv_req_idx ] );
-//    // Update request index
-//    recv_req_idx++;
-//  }
-//  
-//  // Loop over our recv sequences and send each to the dumpi_to_graph process
-//  // with the matching send sequence
-//  for ( auto kvp : this->channel_to_recv_seq ) {
-//    // The trace rank of the sender
-//    int dst = kvp.first.get_src(); 
-//    // The dumpi_to_graph process we are sending this recv sequence to
-//    int owner = this->config.lookup_owning_rank( dst );
-//    // The tag of the message
-//    int tag = kvp.first.get_tag();
-//    // Number of recv vertex IDs we are sending
-//    int n_elements = kvp.second.size();
-//#ifdef SANITY_CHECK
-//    assert( owner != rank ); 
-//    assert( contains_no_invalid_vertex_ids( kvp.second ) );
-//#endif
-//    // FIXME: this copy is probably not necessary, but it's working and doesn't
-//    // seem to be a major source of slowdown 
-//    int send_buffer[ n_elements ];
-//    for ( int i=0; i<n_elements; ++i ) {
-//      send_buffer[i] = kvp.second[i];
-//    }
-//    // FIXME: We do a blocking send here because the non-blocking version was
-//    // delivering corrupted data to the receiver. Pretty sure it has something
-//    // to do with how MPI_Isend requires you to be very careful about not 
-//    // overwriting the send buffer (which I didn't think I was doing but...) 
-//    // Anyway, we use a blocking standard mode send now (which seems to be 
-//    // working fine on MVAPICH 2.3 at least). There's probably an edge case 
-//    // where this can deadlock though, so we should eventually implement this
-//    // as a buffered mode send. 
-//    // FIXME: Same MPI_COMM_WORLD issue as with the receives above
-//    mpi_rc = MPI_Send( &send_buffer[0],
-//                       n_elements,
-//                       MPI_INT,
-//                       owner,
-//                       tag,
-//                       MPI_COMM_WORLD );
-//  }
-//
-//
-//  // Complete all of the receives
-//  mpi_rc = MPI_Waitall( n_recv_reqs, recv_reqs, MPI_STATUSES_IGNORE );
-//
-//#ifdef SANITY_CHECK
-//  assert( validate_remote_recv_seqs( recv_buffer, 
-//                                     n_recv_vertex_ids,
-//                                     this->channel_to_send_seq, 
-//                                     channel_to_offset ) );
-//#endif
-//  
-//  // Now that we have all of the corresponding recv vertex IDs for this 
-//  // dumpi_to_graph process's sends, we can make the rest of the message edges
-//  for ( auto kvp : this->channel_to_send_seq ) {
-//    int offset = channel_to_offset.at( kvp.first );
-//    int n_sends = kvp.second.size();
-//    for ( int i=0; i<n_sends; ++i ) {
-//      auto edge = std::make_pair( kvp.second[i], recv_buffer[offset + i] );
-//      this->message_order_edges.push_back( edge );
-//    }
-//  }
+
+  // The shared receive buffer that will contain all of the recv vertex IDs from
+  // remote dumpi_to_graph processes
+  int recv_buffer[ n_recv_vertex_ids ]; 
+
+  // Loop over our send sequences and post a receive for each matching recv
+  // sequence at the appropriate offset
+  for ( auto kvp : this->channel_to_send_seq ) {
+    // The trace rank of the receiver
+    int src = kvp.first.get_dst();
+    // The dumpi_to_graph process we need to get the matching recv sequence from
+    int owner = this->config.lookup_owning_rank( src );
+    // The tag of the message
+    int tag = kvp.first.get_tag();
+    // Offset into the recv buffer
+    int recv_buffer_offset = channel_to_offset.at( kvp.first );
+    // Number of recv vertex IDs we need to receive
+    int n_elements = kvp.second.size();
+
+    int comm = kvp.first.get_comm();
+
+#ifdef SANITY_CHECK
+    // This should never happen if the local message matching data exchange has
+    // executed (properly), but no amount of paranoia is excessive in the realm
+    // of MPI applications
+    assert( owner != rank );
+#endif
+
+    // Actually post the receive
+    // FIXME: Right now we do all of these exchanges in MPI_COMM_WORLD, but we 
+    // should probably mirror the communicators of the traced application. 
+    // Not a high priority right now since our traced applications
+    // of interest (e.g., Enzo) do everything in MPI_COMM_WORLD themselves.
+    mpi_rc = MPI_Irecv( &recv_buffer[ recv_buffer_offset ],
+                        n_elements,
+                        MPI_INT, 
+                        owner,
+                        tag,
+                        MPI_COMM_WORLD,
+                        &recv_reqs[ recv_req_idx ] );
+    // Update request index
+    recv_req_idx++;
+  }
+  
+  // Loop over our recv sequences and send each to the dumpi_to_graph process
+  // with the matching send sequence
+  for ( auto kvp : this->channel_to_recv_seq ) {
+    // The trace rank of the sender
+    int dst = kvp.first.get_src(); 
+    // The dumpi_to_graph process we are sending this recv sequence to
+    int owner = this->config.lookup_owning_rank( dst );
+    // The tag of the message
+    int tag = kvp.first.get_tag();
+    // Number of recv vertex IDs we are sending
+    int n_elements = kvp.second.size();
+#ifdef SANITY_CHECK
+    assert( owner != rank ); 
+    assert( contains_no_invalid_vertex_ids( kvp.second ) );
+#endif
+    // FIXME: this copy is probably not necessary, but it's working and doesn't
+    // seem to be a major source of slowdown 
+    int send_buffer[ n_elements ];
+    for ( int i=0; i<n_elements; ++i ) {
+      send_buffer[i] = kvp.second[i];
+    }
+    // FIXME: We do a blocking send here because the non-blocking version was
+    // delivering corrupted data to the receiver. Pretty sure it has something
+    // to do with how MPI_Isend requires you to be very careful about not 
+    // overwriting the send buffer (which I didn't think I was doing but...) 
+    // Anyway, we use a blocking standard mode send now (which seems to be 
+    // working fine on MVAPICH 2.3 at least). There's probably an edge case 
+    // where this can deadlock though, so we should eventually implement this
+    // as a buffered mode send. 
+    // FIXME: Same MPI_COMM_WORLD issue as with the receives above
+    mpi_rc = MPI_Send( &send_buffer[0],
+                       n_elements,
+                       MPI_INT,
+                       owner,
+                       tag,
+                       MPI_COMM_WORLD );
+  }
+
+
+  // Complete all of the receives
+  mpi_rc = MPI_Waitall( n_recv_reqs, recv_reqs, MPI_STATUSES_IGNORE );
+
+#ifdef SANITY_CHECK
+  assert( validate_remote_recv_seqs( recv_buffer, 
+                                     n_recv_vertex_ids,
+                                     this->channel_to_send_seq, 
+                                     channel_to_offset ) );
+#endif
+  
+  // Now that we have all of the corresponding recv vertex IDs for this 
+  // dumpi_to_graph process's sends, we can make the rest of the message edges
+  for ( auto kvp : this->channel_to_send_seq ) {
+    int offset = channel_to_offset.at( kvp.first );
+    int n_sends = kvp.second.size();
+    for ( int i=0; i<n_sends; ++i ) {
+      auto edge = std::make_pair( kvp.second[i], recv_buffer[offset + i] );
+      this->message_order_edges.push_back( edge );
+    }
+  }
 }
 
 void EventGraph::make_collective_edges()

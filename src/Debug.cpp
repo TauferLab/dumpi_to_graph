@@ -67,7 +67,9 @@ bool validate_trace( Trace trace )
 
   // Third we check properties of the request map
   auto id_to_request  = trace.get_id_to_request();
-  assert( trace.get_id_to_request().empty() );
+
+  // FIXME: Some codes (e.g., MCB don't complete all of their requests...)
+  //assert( trace.get_id_to_request().empty() );
 
   //// Finally, lets check that the id_to_request map is empty
   //if ( !trace.get_id_to_request().empty() ) {
