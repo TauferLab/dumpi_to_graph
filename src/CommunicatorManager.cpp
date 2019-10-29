@@ -44,23 +44,93 @@ Channel CommunicatorManager::translate_channel( Channel channel, int known_globa
   // Unpack channel
   auto src = channel.get_src();
   auto dst = channel.get_dst();
+  auto tag = channel.get_tag();
   auto comm_id = channel.get_comm();
 
   // Early exit for global communicator
   if ( comm_id == DUMPI_COMM_WORLD ) {
     return channel;
   }
+  
+  // Communicator depth
+  std::unordered_map<int,int> comm_to_idx;
+  for ( auto kvp : comm_to_parent ) {
+    int idx = 1;
+    auto curr_comm = kvp.first;
+    auto parent_comm = kvp.second;
+    while ( parent_comm != DUMPI_COMM_WORLD ) {
+      curr_comm = parent_comm;
+      parent_comm = comm_to_parent.at( curr_comm );
+      idx++;
+    } 
+    comm_to_idx.insert( { kvp.first, idx } );
+  }
+  auto comm_idx = comm_to_idx.at( comm_id ); 
 
-  // Get the translation map for this communicator
+  //// Get the translation map for this communicator
+  //auto translator_search = this->comm_to_translator.find( comm_id );
+  //if ( translator_search == this->comm_to_translator.end() ) {
+  //  std::stringstream ss;
+  //  ss << "Cannot find translator for comm: " << comm_id << std::endl;
+  //  throw std::runtime_error( ss.str() );
+  //}
+
   auto translator = this->comm_to_translator.at( comm_id );
 
   // Case 1: Source rank is global, destination rank is comm-local
   if ( known_global_rank == 0 ) {
+
+    //if ( dst > this->comm_to_size.at( comm_id )-1 ) {
+    //  return channel; 
+    //}
+
+    auto color_seq = this->get_color_seq( src );
+    std::vector<int> color_subseq;
+    for ( int i = 0; i < comm_idx; ++i ) {
+      color_subseq.push_back( color_seq[i] );
+    }
+    auto key = std::make_pair( dst, color_subseq );
     
+    //// Hack to deal with some dst ranks that are already correct
+    //// FIXME: No idea why this is happening
+    auto search = translator.find( key );
+    if ( search == translator.end() ) {
+      //std::stringstream ss;
+      //ss << "Cannot translate dst comm rank: " << dst 
+      //   << " in comm: " << comm_id
+      //   << " to global rank" << std::endl;
+      //throw std::runtime_error( ss.str() );
+      return channel;
+    }
+
+    auto dst_global_rank = translator.at( key );
+    Channel translated_channel( src, dst_global_rank, tag, comm_id );
+    return translated_channel;
   }
   // Case 2: Destination rank is global, source rank is comm-local
   else if ( known_global_rank == 1 ) {
+    auto color_seq = this->get_color_seq( dst );
+    std::vector<int> color_subseq;
+    for ( int i = 0; i < comm_idx; ++i ) {
+      color_subseq.push_back( color_seq[i] );
+    }
+    auto key = std::make_pair( src, color_subseq );
 
+    auto search = translator.find( key );
+    if ( search == translator.end() ) {
+      std::stringstream ss;
+      ss << "Cannot translate src comm rank: " << src 
+         << " in comm: " << comm_id
+         << " to global rank" << std::endl;
+      throw std::runtime_error( ss.str() );
+    }
+
+    auto src_global_rank = translator.at( key );
+    Channel translated_channel( src_global_rank, dst, tag, comm_id );
+    return translated_channel;
+  }
+  else {
+    throw std::runtime_error("Invalid option for translate_channel");
   }
 }
 
