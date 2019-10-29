@@ -26,175 +26,203 @@ int CommunicatorManager::get_comm_rank( int comm_id, int global_rank )
   return comm_rank;
 }
 
-void CommunicatorManager::set_translator( std::unordered_map<std::pair<int,std::vector<int>>,int,rank_seq_hash> translator ) 
+void CommunicatorManager::set_comm_to_translator( std::unordered_map<int,std::unordered_map<std::pair<int,std::vector<int>>,int,rank_seq_hash>> comm_to_translator ) 
 {
-  this->translator = translator;
+  this->comm_to_translator = comm_to_translator;
 }
 
-std::unordered_map<std::pair<int,std::vector<int>>,int,rank_seq_hash> CommunicatorManager::get_translator() const
+std::unordered_map<int,std::unordered_map<std::pair<int,std::vector<int>>,int,rank_seq_hash>> CommunicatorManager::get_comm_to_translator() const
 {
-  return this->translator;
+  return this->comm_to_translator;
 }
 
 
-int CommunicatorManager::sender_comm_rank_to_global_rank( Channel channel )
-{
-  // Unpack channel
-  auto sender_comm_rank     = channel.get_src();
-  auto receiver_global_rank = channel.get_dst();
-  auto comm_id              = channel.get_comm();
-
-  // Need to find out which process group this communication occured in, so
-  // we look up the "color" using the global rank of the sender
-  auto rank_to_color = comm_to_rank_to_color.at( comm_id );
-  auto color         = rank_to_color.at( receiver_global_rank );
-
-  // 
-  std::set<int> colors;
-  for ( auto kvp : rank_to_color ) {
-    auto color = kvp.second;
-    colors.insert( color );
-  }
-  int comm_rank_subrange_idx = 0;
-  int i = 0;
-  for ( auto curr_color : colors ) {
-    if ( curr_color == color ) {
-      comm_rank_subrange_idx = i;
-      break;
-    }
-    i++;
-  }
-  auto comm_size = comm_to_size.at( comm_id );
-  
-  auto global_rank_to_key = comm_to_rank_to_key.at( comm_id );
-
-  std::vector<int> keys;
-  for ( auto kvp : global_rank_to_key ) {
-    auto key = kvp.second;
-    keys.push_back( key );
-  }
-  std::sort( keys.begin(), keys.end() );
-
-  int key_idx = comm_size * comm_rank_subrange_idx + sender_comm_rank;
-  
-  auto key = keys[ key_idx ];
-
-  //std::cout << "Translating comm rank: " << receiver_comm_rank 
-  //          << " in comm: " << comm_id 
-  //          << " color: " << color
-  //          << " subrange size: " << comm_size
-  //          << " subrange idx: " << comm_rank_subrange_idx
-  //          << " key idx: " << key_idx
-  //          << " key: " << key
-  //          << std::endl;
-
-  std::unordered_map<int,int> key_to_global_rank;
-  for ( auto kvp : global_rank_to_key ) {
-    auto curr_key = kvp.second;
-    auto curr_rank = kvp.first;
-    auto curr_color = rank_to_color.at( curr_rank );
-    if ( curr_color == color ) {
-      key_to_global_rank.insert( { curr_key, curr_rank } );
-    }
-  }
-
-  auto sender_global_rank = key_to_global_rank.at( key );
-
-  //std::cout << "Translated comm rank: " << sender_comm_rank 
-  //          << " to global rank: " << sender_global_rank
-  //          << " in comm: " << comm_id
-  //          << std::endl;
-
-  return sender_global_rank; 
-}
-
-int CommunicatorManager::receiver_comm_rank_to_global_rank( Channel channel )
+// Translates a channel where either the src or dst ranks (but not both) are
+// local to the communicator to a channel where both src and dst are global ranks
+Channel CommunicatorManager::translate_channel( Channel channel, int known_global_rank )
 {
   // Unpack channel
-  auto sender_global_rank = channel.get_src();
-  auto receiver_comm_rank = channel.get_dst();
-  auto comm_id            = channel.get_comm();
+  auto src = channel.get_src();
+  auto dst = channel.get_dst();
+  auto comm_id = channel.get_comm();
 
-  // We need to determine how to traverse the communicator tree to get to the 
-  // right range of ranks. To do this, we need to first figure out which process
-  // subgroup this communication took place in, not just for this communicator,
-  // but also for all of its ancestors
-  std::vector<int> color_seq;
-  auto curr_comm_id = comm_id;
-  while ( curr_comm_id != DUMPI_COMM_WORLD ) {
-    // Look up color based on the one global rank we already have (the sender)
-    auto rank_to_color = comm_to_rank_to_color.at( curr_comm_id );
-    auto color = rank_to_color.at( sender_global_rank );
-    color_seq.push_back( color );
-    curr_comm_id = comm_to_parent.at( curr_comm_id );
-  }
-  
-
-
-  // Need to find out which process group this communication occured in, so
-  // we look up the "color" using the global rank of the sender
-  auto rank_to_color = comm_to_rank_to_color.at( comm_id );
-  auto color         = rank_to_color.at( sender_global_rank );
-
-
-  // 
-  std::set<int> colors;
-  for ( auto kvp : rank_to_color ) {
-    auto color = kvp.second;
-    colors.insert( color );
-  }
-  int comm_rank_subrange_idx = 0;
-  int i = 0;
-  for ( auto curr_color : colors ) {
-    if ( curr_color == color ) {
-      comm_rank_subrange_idx = i;
-      break;
-    }
-    i++;
-  }
-  auto comm_size = comm_to_size.at( comm_id );
-  
-  auto global_rank_to_key = comm_to_rank_to_key.at( comm_id );
-
-  std::vector<int> keys;
-  for ( auto kvp : global_rank_to_key ) {
-    auto key = kvp.second;
-    keys.push_back( key );
-  }
-  std::sort( keys.begin(), keys.end() );
-
-  int key_idx = comm_size * comm_rank_subrange_idx + receiver_comm_rank;
-  
-  auto key = keys[ key_idx ];
-
-  //std::cout << "Translating comm rank: " << receiver_comm_rank 
-  //          << " in comm: " << comm_id 
-  //          << " color: " << color
-  //          << " subrange size: " << comm_size
-  //          << " subrange idx: " << comm_rank_subrange_idx
-  //          << " key idx: " << key_idx
-  //          << " key: " << key
-  //          << std::endl;
-
-  std::unordered_map<int,int> key_to_global_rank;
-  for ( auto kvp : global_rank_to_key ) {
-    auto curr_key = kvp.second;
-    auto curr_rank = kvp.first;
-    auto curr_color = rank_to_color.at( curr_rank );
-    if ( curr_color == color ) {
-      key_to_global_rank.insert( { curr_key, curr_rank } );
-    }
+  // Early exit for global communicator
+  if ( comm_id == DUMPI_COMM_WORLD ) {
+    return channel;
   }
 
-  auto global_rank = key_to_global_rank.at( key );
+  // Get the translation map for this communicator
+  auto translator = this->comm_to_translator.at( comm_id );
 
-  //std::cout << "Translated comm rank: " << receiver_comm_rank 
-  //          << " to global rank: " << global_rank
-  //          << " in comm: " << comm_id
-  //          << std::endl;
-  
-  return global_rank;
+  // Case 1: Source rank is global, destination rank is comm-local
+  if ( known_global_rank == 0 ) {
+    
+  }
+  // Case 2: Destination rank is global, source rank is comm-local
+  else if ( known_global_rank == 1 ) {
+
+  }
 }
+
+
+//int CommunicatorManager::sender_comm_rank_to_global_rank( Channel channel )
+//{
+//  // Unpack channel
+//  auto sender_comm_rank     = channel.get_src();
+//  auto receiver_global_rank = channel.get_dst();
+//  auto comm_id              = channel.get_comm();
+//
+//  // Need to find out which process group this communication occured in, so
+//  // we look up the "color" using the global rank of the sender
+//  auto rank_to_color = comm_to_rank_to_color.at( comm_id );
+//  auto color         = rank_to_color.at( receiver_global_rank );
+//
+//  // 
+//  std::set<int> colors;
+//  for ( auto kvp : rank_to_color ) {
+//    auto color = kvp.second;
+//    colors.insert( color );
+//  }
+//  int comm_rank_subrange_idx = 0;
+//  int i = 0;
+//  for ( auto curr_color : colors ) {
+//    if ( curr_color == color ) {
+//      comm_rank_subrange_idx = i;
+//      break;
+//    }
+//    i++;
+//  }
+//  auto comm_size = comm_to_size.at( comm_id );
+//  
+//  auto global_rank_to_key = comm_to_rank_to_key.at( comm_id );
+//
+//  std::vector<int> keys;
+//  for ( auto kvp : global_rank_to_key ) {
+//    auto key = kvp.second;
+//    keys.push_back( key );
+//  }
+//  std::sort( keys.begin(), keys.end() );
+//
+//  int key_idx = comm_size * comm_rank_subrange_idx + sender_comm_rank;
+//  
+//  auto key = keys[ key_idx ];
+//
+//  //std::cout << "Translating comm rank: " << receiver_comm_rank 
+//  //          << " in comm: " << comm_id 
+//  //          << " color: " << color
+//  //          << " subrange size: " << comm_size
+//  //          << " subrange idx: " << comm_rank_subrange_idx
+//  //          << " key idx: " << key_idx
+//  //          << " key: " << key
+//  //          << std::endl;
+//
+//  std::unordered_map<int,int> key_to_global_rank;
+//  for ( auto kvp : global_rank_to_key ) {
+//    auto curr_key = kvp.second;
+//    auto curr_rank = kvp.first;
+//    auto curr_color = rank_to_color.at( curr_rank );
+//    if ( curr_color == color ) {
+//      key_to_global_rank.insert( { curr_key, curr_rank } );
+//    }
+//  }
+//
+//  auto sender_global_rank = key_to_global_rank.at( key );
+//
+//  //std::cout << "Translated comm rank: " << sender_comm_rank 
+//  //          << " to global rank: " << sender_global_rank
+//  //          << " in comm: " << comm_id
+//  //          << std::endl;
+//
+//  return sender_global_rank; 
+//}
+//
+//int CommunicatorManager::receiver_comm_rank_to_global_rank( Channel channel )
+//{
+//  // Unpack channel
+//  auto sender_global_rank = channel.get_src();
+//  auto receiver_comm_rank = channel.get_dst();
+//  auto comm_id            = channel.get_comm();
+//
+//  // We need to determine how to traverse the communicator tree to get to the 
+//  // right range of ranks. To do this, we need to first figure out which process
+//  // subgroup this communication took place in, not just for this communicator,
+//  // but also for all of its ancestors
+//  std::vector<int> color_seq;
+//  auto curr_comm_id = comm_id;
+//  while ( curr_comm_id != DUMPI_COMM_WORLD ) {
+//    // Look up color based on the one global rank we already have (the sender)
+//    auto rank_to_color = comm_to_rank_to_color.at( curr_comm_id );
+//    auto color = rank_to_color.at( sender_global_rank );
+//    color_seq.push_back( color );
+//    curr_comm_id = comm_to_parent.at( curr_comm_id );
+//  }
+//  
+//
+//
+//  // Need to find out which process group this communication occured in, so
+//  // we look up the "color" using the global rank of the sender
+//  auto rank_to_color = comm_to_rank_to_color.at( comm_id );
+//  auto color         = rank_to_color.at( sender_global_rank );
+//
+//
+//  // 
+//  std::set<int> colors;
+//  for ( auto kvp : rank_to_color ) {
+//    auto color = kvp.second;
+//    colors.insert( color );
+//  }
+//  int comm_rank_subrange_idx = 0;
+//  int i = 0;
+//  for ( auto curr_color : colors ) {
+//    if ( curr_color == color ) {
+//      comm_rank_subrange_idx = i;
+//      break;
+//    }
+//    i++;
+//  }
+//  auto comm_size = comm_to_size.at( comm_id );
+//  
+//  auto global_rank_to_key = comm_to_rank_to_key.at( comm_id );
+//
+//  std::vector<int> keys;
+//  for ( auto kvp : global_rank_to_key ) {
+//    auto key = kvp.second;
+//    keys.push_back( key );
+//  }
+//  std::sort( keys.begin(), keys.end() );
+//
+//  int key_idx = comm_size * comm_rank_subrange_idx + receiver_comm_rank;
+//  
+//  auto key = keys[ key_idx ];
+//
+//  //std::cout << "Translating comm rank: " << receiver_comm_rank 
+//  //          << " in comm: " << comm_id 
+//  //          << " color: " << color
+//  //          << " subrange size: " << comm_size
+//  //          << " subrange idx: " << comm_rank_subrange_idx
+//  //          << " key idx: " << key_idx
+//  //          << " key: " << key
+//  //          << std::endl;
+//
+//  std::unordered_map<int,int> key_to_global_rank;
+//  for ( auto kvp : global_rank_to_key ) {
+//    auto curr_key = kvp.second;
+//    auto curr_rank = kvp.first;
+//    auto curr_color = rank_to_color.at( curr_rank );
+//    if ( curr_color == color ) {
+//      key_to_global_rank.insert( { curr_key, curr_rank } );
+//    }
+//  }
+//
+//  auto global_rank = key_to_global_rank.at( key );
+//
+//  //std::cout << "Translated comm rank: " << receiver_comm_rank 
+//  //          << " to global rank: " << global_rank
+//  //          << " in comm: " << comm_id
+//  //          << std::endl;
+//  
+//  return global_rank;
+//}
 
 CommunicatorManager::CommunicatorManager( size_t global_comm_size )
 {
@@ -214,7 +242,7 @@ CommunicatorManager CommunicatorManager::operator=( const CommunicatorManager& r
     this->comm_to_rank_to_color = rhs.get_comm_to_rank_to_color();
     this->comm_to_rank_to_key = rhs.get_comm_to_rank_to_key();
     this->comm_to_global_rank_to_comm_rank = rhs.get_comm_to_global_rank_to_comm_rank();
-    this->translator = rhs.get_translator();
+    this->comm_to_translator = rhs.get_comm_to_translator();
     return *this;
   }
 }
@@ -542,17 +570,21 @@ void CommunicatorManager::print() const
     }
   }
   std::cout << std::endl;
-  std::cout << "Translator:" << std::endl;
-  for ( auto kvp : translator ) {
-    auto global_rank = kvp.second;
-    auto comm_rank = kvp.first.first;
-    auto color_seq = kvp.first.second;
-    std::cout << "Comm. Rank: " << comm_rank 
-              << " Color Seq: ";
-    for ( auto color : color_seq ) {
-      std::cout << color << " ";
+  for ( auto comm_translator : comm_to_translator ) {
+    auto comm_id = comm_translator.first;
+    auto translator = comm_translator.second;
+    std::cout << "Comm: " << comm_id << " Translator:" << std::endl;
+    for ( auto kvp : translator ) {
+      auto global_rank = kvp.second;
+      auto comm_rank = kvp.first.first;
+      auto color_seq = kvp.first.second;
+      std::cout << "Comm. Rank: " << comm_rank 
+                << " Color Subseq: ";
+      for ( auto color : color_seq ) {
+        std::cout << color << " ";
+      }
+      std::cout << "--> Global Rank: " << global_rank << std::endl;
     }
-    std::cout << "--> Global Rank: " << global_rank << std::endl;
   }
 }
 

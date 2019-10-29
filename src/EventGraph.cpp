@@ -184,24 +184,73 @@ CommunicatorManager EventGraph::exchange_user_defined_comm_data()
 
   comm_manager.calculate_global_rank_to_comm_rank_mapping();
 
+  std::cout << "Rank: " << global_rank << " ready to build translators" << std::endl;
+
+  comm_world.barrier(); 
+
   // Maps from a pair of (comm_rank, color_seq) to global_rank
-  std::unordered_map<std::pair<int,std::vector<int>>,int,rank_seq_hash> translator;
+  std::unordered_map<int,std::unordered_map<std::pair<int,std::vector<int>>,int,rank_seq_hash>> comm_to_translator;
+
   auto comm_to_rank_to_color = comm_manager.get_comm_to_rank_to_color();
   auto comm_to_rank_to_key = comm_manager.get_comm_to_rank_to_key();
-  for ( auto kvp : comm_to_rank_to_color ) {
-    auto comm_id = kvp.first;
-    auto global_rank_to_color = kvp.second;
-    auto global_rank_to_key = comm_to_rank_to_key.at( comm_id );
-    for ( auto kvp2 : global_rank_to_color ) {
-      auto global_rank = kvp2.first;
-      auto comm_rank = comm_manager.get_comm_rank( comm_id, global_rank );
-      auto color_seq = comm_manager.get_color_seq( global_rank );
-      auto key = std::make_pair( comm_rank, color_seq );
-      translator.insert( { key, global_rank } );
-    }
+  auto comm_to_parent = comm_manager.get_comm_to_parent();
+
+  // Communicator depth
+  std::unordered_map<int,int> comm_to_idx;
+  for ( auto kvp : comm_to_parent ) {
+    int idx = 1;
+    auto curr_comm = kvp.first;
+    auto parent_comm = kvp.second;
+    while ( parent_comm != DUMPI_COMM_WORLD ) {
+      curr_comm = parent_comm;
+      parent_comm = comm_to_parent.at( curr_comm );
+      idx++;
+    } 
+    comm_to_idx.insert( { kvp.first, idx } );
   }
 
-  comm_manager.set_translator( translator );
+  for ( auto kvp : comm_to_rank_to_color ) {
+
+    // Get communicator we're building a translator for
+    auto comm_id = kvp.first;
+
+    // Initialize a translator for this communicator
+    std::unordered_map< std::pair<int,std::vector<int>>, int, rank_seq_hash> translator;
+
+    // Get the depth of this comm in the comm hierarchy. This will determine 
+    // how much of the color sequence of global rank to use in constructing 
+    // the key in the translator
+    auto comm_idx = comm_to_idx.at( comm_id );
+    
+    // Get mappings from global ranks to colors and keys for this communicator
+    auto global_rank_to_color = kvp.second;
+    auto global_rank_to_key = comm_to_rank_to_key.at( comm_id );
+    
+    // Loop over global ranks
+    for ( auto kvp2 : global_rank_to_color ) {
+      auto global_rank = kvp2.first;
+
+      // Translate to communicator rank
+      auto comm_rank = comm_manager.get_comm_rank( comm_id, global_rank );
+
+      // Get the full color sequence associated with the global rank
+      auto color_seq = comm_manager.get_color_seq( global_rank );
+
+      // Take the relevant subsequence of it
+      std::vector<int> color_subseq;
+      for ( int i = 0; i < comm_idx; ++i ) {
+        color_subseq.push_back( color_seq[i] );
+      }
+
+      auto key = std::make_pair( comm_rank, color_subseq );
+      translator.insert( { key, global_rank } );
+    }
+
+    // Associate this translator with its communicator
+    comm_to_translator.insert( { comm_id, translator } );
+  }
+
+  comm_manager.set_comm_to_translator( comm_to_translator );
 
   return comm_manager; 
 }
@@ -433,7 +482,7 @@ void EventGraph::exchange_message_matching_data_for_communicator( int current_co
     if ( comm_id == current_comm_id ) {
       int src = kvp.first.get_dst();
       if ( comm_id != DUMPI_COMM_WORLD ) {
-        src = this->comm_manager.receiver_comm_rank_to_global_rank( kvp.first );
+        //src = this->comm_manager.receiver_comm_rank_to_global_rank( kvp.first );
 
         //Channel test_channel = { 12, 0, 31, 4 };
         //if ( kvp.first == test_channel ) {
@@ -469,7 +518,7 @@ void EventGraph::exchange_message_matching_data_for_communicator( int current_co
     if ( comm_id == current_comm_id ) {
       int dst = kvp.first.get_src(); 
       if ( comm_id != DUMPI_COMM_WORLD ) {
-        dst = this->comm_manager.sender_comm_rank_to_global_rank( kvp.first );
+        //dst = this->comm_manager.sender_comm_rank_to_global_rank( kvp.first );
         
         //Channel test_channel = { 12, 0, 31, 4 };
         //if ( kvp.first == test_channel ) {

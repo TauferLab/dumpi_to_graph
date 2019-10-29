@@ -21,10 +21,13 @@ class CommunicatorManager
 public:
   CommunicatorManager() {}
   CommunicatorManager( size_t global_comm_size );
-  
+ 
+  // 
+  Channel translate_channel( Channel channel, int known_global_rank );
+
   // translator
-  void set_translator( std::unordered_map<std::pair<int,std::vector<int>>,int,rank_seq_hash> translator );
-  std::unordered_map<std::pair<int,std::vector<int>>,int,rank_seq_hash> get_translator() const;
+  void set_comm_to_translator( std::unordered_map<int,std::unordered_map<std::pair<int,std::vector<int>>,int,rank_seq_hash>> comm_to_translator );
+  std::unordered_map<int,std::unordered_map<std::pair<int,std::vector<int>>,int,rank_seq_hash>> get_comm_to_translator() const;
 
   // 
   std::vector<int> get_color_seq( int global_rank );
@@ -33,8 +36,9 @@ public:
   // Used during message matching data exchange to translate from the 
   // communicator-specific ranks observed in the trace data to the global ranks
   // we should actually send to
-  int sender_comm_rank_to_global_rank( Channel channel ); 
-  int receiver_comm_rank_to_global_rank( Channel channel ); 
+  //int sender_comm_rank_to_global_rank( Channel channel ); 
+  //int receiver_comm_rank_to_global_rank( Channel channel ); 
+
   // Function to associate each communicator with its colors
   // Function to calculate communicator sizes once all dumpi_to_graph processes
   // have sufficient information to do so
@@ -58,7 +62,7 @@ public:
   // Convenience printer
   void print() const;
 private:
-  std::unordered_map<std::pair<int,std::vector<int>>,int,rank_seq_hash> translator;
+  std::unordered_map<int, std::unordered_map<std::pair<int,std::vector<int>>,int,rank_seq_hash>> comm_to_translator;
 
   std::unordered_map<int,size_t> comm_to_size;
   std::unordered_map<int,int> comm_to_parent;
@@ -76,7 +80,7 @@ private:
     ar & comm_to_rank_to_color;
     ar & comm_to_rank_to_key;
     ar & comm_to_global_rank_to_comm_rank;
-    ar & translator;
+    ar & comm_to_translator;
   }
 };
 
