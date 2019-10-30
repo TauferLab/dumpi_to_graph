@@ -8,6 +8,7 @@
 #include "matching_function_callbacks.hpp" 
 #include "request_mutating_callbacks.hpp"
 #include "blocking_collective_callbacks.hpp"
+#include "communicator_management_callbacks.hpp"
 
 void set_callbacks(libundumpi_callbacks* callbacks, 
                    Configuration config)
@@ -50,12 +51,14 @@ void set_callbacks(libundumpi_callbacks* callbacks,
     else if (fn == "MPI_Testall")      { callbacks->on_testall      = cb_MPI_Testall;      }
     // Blocking collectives
     else if (fn == "MPI_Barrier")      { callbacks->on_barrier      = cb_MPI_Barrier;      }
-    //else if (fn == "MPI_Reduce")       { callbacks->on_reduce       = cb_MPI_Reduce;       }
-    //else if (fn == "MPI_Allreduce")       { callbacks->on_allreduce       = cb_MPI_Allreduce;       }
-    //// Communicator management
-    //else if (fn == "MPI_Comm_rank")    { callbacks->on_comm_rank    = cb_MPI_Comm_rank;    }
-    //else if (fn == "MPI_Comm_size")    { callbacks->on_comm_size    = cb_MPI_Comm_size;    }
-    //else if (fn == "MPI_Comm_split")   { callbacks->on_comm_split   = cb_MPI_Comm_split;   }
+    else if (fn == "MPI_Reduce")       { callbacks->on_reduce       = cb_MPI_Reduce;       }
+    else if (fn == "MPI_Allreduce")    { callbacks->on_allreduce    = cb_MPI_Allreduce;    }
+    else if (fn == "MPI_Alltoall")     { callbacks->on_alltoall     = cb_MPI_Alltoall;     }
+    else if (fn == "MPI_Alltoallv")    { callbacks->on_alltoallv    = cb_MPI_Alltoallv;    }
+    // Communicator management
+    else if (fn == "MPI_Comm_rank")    { callbacks->on_comm_rank    = cb_MPI_Comm_rank;    }
+    else if (fn == "MPI_Comm_size")    { callbacks->on_comm_size    = cb_MPI_Comm_size;    }
+    else if (fn == "MPI_Comm_split")   { callbacks->on_comm_split   = cb_MPI_Comm_split;   }
   }
 }
 

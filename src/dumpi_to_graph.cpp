@@ -17,6 +17,7 @@
 #include "Utilities.hpp"
 #include "Debug.hpp"
 #include "EventGraph.hpp"
+#include "CommunicatorManager.hpp"
 
 int main(int argc, char** argv) 
 {
@@ -133,24 +134,31 @@ int main(int argc, char** argv)
                 << std::endl;
     }
 #endif
+    mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
 
 #ifdef SANITY_CHECK
     // Do a big sanity check on all of the trace contents
     for ( auto kvp : rank_to_trace ) {
       assert( validate_trace( *kvp.second ) );
     }
-    std::cout << "Rank: " << dumpi_to_graph_rank 
-              << " traces validated" << std::endl;
+    //std::cout << "Rank: " << dumpi_to_graph_rank 
+    //          << " traces validated" << std::endl;
 #endif
-
-  
+    mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
+    
+    //std::cout << "Rank: " << dumpi_to_graph_rank << " exiting" << std::endl;
+    //exit(0);
+    
     // Construct this dumpi_to_graph process's partial view of the entire event
     // graph.
-    std::cout << "Rank: " << dumpi_to_graph_rank 
-              << " starting event graph construction" << std::endl;
+    //std::cout << "Rank: " << dumpi_to_graph_rank 
+    //          << " starting event graph construction" << std::endl;
     EventGraph event_graph( config, rank_to_trace );
     std::cout << "Rank: " << dumpi_to_graph_rank 
               << " finished event graph construction" << std::endl;
+    
+  
+    mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
 
     // Apply logical timestamps
     std::cout << "Rank: " << dumpi_to_graph_rank 

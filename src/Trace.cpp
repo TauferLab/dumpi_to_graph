@@ -9,7 +9,7 @@
 
 // DUMPI
 #include "dumpi/common/argtypes.h" 
-#include "dumpi/common/constants.h" // DUMPI_ANY_SOURCE, DUMPI_ANY_TAG
+#include "dumpi/common/constants.h" // DUMPI_ANY_SOURCE, DUMPI_ANY_TAG, DUMPI_COMM_WORLD
 #include "dumpi/common/types.h" // dumpi_clock 
 
 // Internal
@@ -17,7 +17,131 @@
 #include "Channel.hpp"
 #include "Request.hpp"
 #include "Debug.hpp"
+#include "CommunicatorManager.hpp"
 
+Trace::Trace( Configuration config, 
+              std::string trace_dir,
+              int trace_rank,
+              int dumpi_to_graph_rank )
+{
+  // Set members
+  this->config = config;
+  this->trace_dir = trace_dir;
+  this->trace_rank = trace_rank;
+  this->dumpi_to_graph_rank = dumpi_to_graph_rank;
+  // Get # trace ranks 
+  int mpi_rc;
+  int reduce_recv_buffer;
+  int reduce_send_buffer = trace_rank;
+  int count = 1;
+  int root = 0;
+  mpi_rc = MPI_Reduce( &reduce_send_buffer,
+                       &reduce_recv_buffer,
+                       count,
+                       MPI_INT,
+                       MPI_MAX,
+                       root,
+                       MPI_COMM_WORLD );
+  int bcast_buffer;
+  if ( dumpi_to_graph_rank == 0 ) {
+    bcast_buffer = reduce_recv_buffer;
+  }
+  mpi_rc = MPI_Bcast( &bcast_buffer,
+                      count,
+                      MPI_INT,
+                      root,
+                      MPI_COMM_WORLD );
+  n_trace_ranks = bcast_buffer + 1;
+  //std::cout << "Rank: " << dumpi_to_graph_rank
+  //          << " end of Trace constructor" 
+  //          << " # trace ranks = " << n_trace_ranks
+  //          << std::endl;
+  
+  // Set size of global communicator
+  this->comm_manager = CommunicatorManager( n_trace_ranks );
+}
+
+
+//std::unordered_map<int,int> Trace::get_comm_to_parent() const
+//{
+//  return this->comm_to_parent;
+//}
+//
+//std::unordered_map<int,size_t> Trace::get_comm_to_size() const
+//{
+//  return this->comm_to_size;
+//}
+//
+//std::unordered_map<int,std::unordered_map<int,std::pair<int,int>>> Trace::get_comm_to_rankcolorkey() const
+//{
+//  return this->comm_to_rankcolorkey;
+//}
+//
+//// 
+//std::unordered_map<int, std::pair< std::unordered_map<int,int>,std::unordered_map<int,int>>> Trace::get_rank_translator() const
+//{
+//  return this->rank_translator;
+//}
+
+CommunicatorManager& Trace::get_comm_manager()
+{
+  return this->comm_manager;
+} 
+
+void Trace::register_comm_split( int parent_comm_id,
+                                 int new_comm_id, 
+                                 int color, 
+                                 int key )
+{
+  auto global_rank = this->get_trace_rank();
+  // Update communicator-hierarchy
+  this->comm_manager.update_comm_to_parent( new_comm_id, parent_comm_id );
+  // Associate the global rank with its group (color) and rank (key) within
+  // the new communicator
+  this->comm_manager.associate_rank_with_color( new_comm_id, global_rank, color );
+  this->comm_manager.associate_rank_with_key( new_comm_id, global_rank, key );
+}
+
+//void Trace::register_user_defined_communicator( int parent_comm_id,
+//                                                int new_comm_id, 
+//                                                int color, 
+//                                                int key )
+//{
+//  this->comm_to_parent.insert( { new_comm_id, parent_comm_id } );
+//  auto comm_search = this->comm_to_rankcolorkey.find( new_comm_id );
+//  if ( comm_search == this->comm_to_rankcolorkey.end() ) {
+//    std::unordered_map<int, std::pair<int,int>> rank_to_colorkey;
+//    rank_to_colorkey.insert( { this->get_trace_rank(), std::make_pair(color, key) } );
+//    comm_to_rankcolorkey.insert( { new_comm_id, rank_to_colorkey } );
+//  } 
+//  else {
+//    throw std::runtime_error("Trying to overwrite user-defined comm. mapping");
+//  }
+//}
+
+
+//void Trace::register_communicator_rank( int comm_id, int rank )
+//{
+//  if ( comm_id != DUMPI_COMM_WORLD ) {
+//    auto global_rank = this->trace_rank;
+//    auto search = rank_translator.find( comm_id ); 
+//    // Case 1: This is first time we are seeing this communicator
+//    if ( search == rank_translator.end() ) {
+//      std::unordered_map<int,int> comm_rank_to_global_rank;
+//      std::unordered_map<int,int> global_rank_to_comm_rank;
+//      comm_rank_to_global_rank.insert( { rank, global_rank } );
+//      global_rank_to_comm_rank.insert( { global_rank, rank } );
+//      rank_translator.insert( { comm_id, std::make_pair( comm_rank_to_global_rank, global_rank_to_comm_rank ) } );
+//    }
+//    // Case 2: Seen communicator before
+//    else {
+//      auto comm_rank_to_global_rank = search->second.first;
+//      auto global_rank_to_comm_rank = search->second.second;
+//      comm_rank_to_global_rank.insert( { rank, global_rank } );
+//      global_rank_to_comm_rank.insert( { global_rank, rank } );
+//    }
+//  }
+//}
 
 void Trace::register_barrier( size_t event_vertex_id ) 
 {
@@ -549,3 +673,29 @@ void Trace::report_id_to_request()
               << " Request Object: " << kvp.second << std::endl;
   }
 }
+
+//void Trace::report_comm_to_size() const
+//{
+//  std::cout << "Communicator ID to communicator size for trace rank:" 
+//            << this->get_trace_rank() << std::endl;
+//  for ( auto kvp : this->comm_to_size ) {
+//    std::cout << "Communicator ID: " << kvp.first
+//              << " Size: " << kvp.second
+//              << std::endl;
+//  }
+//}
+//
+//void Trace::report_comm_to_rankcolorkey() const
+//{
+//  for ( auto kvp : this->comm_to_rankcolorkey ) {
+//    std::cout << "Communicator ID: " << kvp.first << std::endl;
+//    for ( auto kvp2 : kvp.second ) {
+//      std::cout << "Rank: " << kvp2.first 
+//                << " Color: " << kvp2.second.first
+//                << " Key: " << kvp2.second.second
+//                << std::endl;
+//    }
+//  }
+//}
+
+

@@ -40,11 +40,13 @@ SOURCES+= nonblocking_p2p_callbacks.cpp
 SOURCES+= matching_function_callbacks.cpp
 SOURCES+= request_mutating_callbacks.cpp
 SOURCES+= blocking_collective_callbacks.cpp
+SOURCES+= communicator_management_callbacks.cpp
 # Trace and event graph representation
 SOURCES+= Trace.cpp
 SOURCES+= Channel.cpp
 SOURCES+= Request.cpp
 SOURCES+= EventGraph.cpp
+SOURCES+= CommunicatorManager.cpp
 # Utilities
 SOURCES+= Utilities.cpp
 SOURCES+= Debug.cpp

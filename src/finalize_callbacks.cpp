@@ -24,7 +24,7 @@ int cb_MPI_Finalize(const dumpi_finalize *prm,
   // Add the event to the event sequence for this trace  
   trace->register_finalize();
   trace->register_dumpi_timestamp( wall_time );
-  
+
   (void)uarg;
   
   // Return OK

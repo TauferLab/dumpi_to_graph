@@ -39,19 +39,37 @@ bool validate_remote_recv_seqs( const int* recv_buffer,
 
 bool validate_trace( Trace trace )
 {
-  // First lets check that the the event sequence begins with an init and ends 
-  // with a finalize
+  // First we check properties of the event sequence
+  auto event_seq = trace.get_event_seq();
   
+  // Check that the event sequence is at least two events long
+  // This is a minimum requirement for a correct MPI program order 
+  // (i.e., the program order for a program that calls MPI_Init or 
+  // MPI_Init_thread and then immediately calls MPI_Finalize)
+  assert( event_seq.size() >= 2 );
+  
+  // Check that the the event sequence begins with an init and ends 
+  assert( event_seq.front() == 2 );
+  assert( event_seq.back() == 3 );
+
+  // Second we check properties of the channel maps
+  auto channel_to_send_seq = trace.get_channel_to_send_seq();
+  auto channel_to_recv_seq = trace.get_channel_to_recv_seq();
+
   // Next, lets check that the channel maps and the mapping from vertex IDs to
   // channels contain vertex sequences with only valid values 
-  auto channel_to_send_seq = trace.get_channel_to_send_seq();
   for ( auto kvp : channel_to_send_seq ) {
     assert( contains_no_invalid_vertex_ids( kvp.second ) );
   }
-  auto channel_to_recv_seq = trace.get_channel_to_recv_seq();
-  for ( auto kvp : channel_to_send_seq ) {
+  for ( auto kvp : channel_to_recv_seq ) {
     assert( contains_no_invalid_vertex_ids( kvp.second ) );
   }
+
+  // Third we check properties of the request map
+  auto id_to_request  = trace.get_id_to_request();
+
+  // FIXME: Some codes (e.g., MCB don't complete all of their requests...)
+  //assert( trace.get_id_to_request().empty() );
 
   //// Finally, lets check that the id_to_request map is empty
   //if ( !trace.get_id_to_request().empty() ) {
@@ -60,7 +78,6 @@ bool validate_trace( Trace trace )
   //  trace.report_id_to_request();
   //  //exit(0);
   //}
-  ////assert( trace.get_id_to_request().empty() );
 
   // Return OK
   return true;

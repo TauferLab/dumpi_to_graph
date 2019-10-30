@@ -17,6 +17,12 @@
 // When defined, various runtime assertions will be checked at
 #define SANITY_CHECK
 
+// Print high-level progress info
+#define PRINT_PROGRESS
+
+// Print verbose progress info
+#define PRINT_VERBOSE_PROGRESS
+
 // Checks that a vertex sequence (e.g., the sequence of sends or recvs mapped to 
 // a channel) contains no negative values. While this does not ensure that the 
 // vertex IDs are correct (that is largely the duty of the trace parsing 
