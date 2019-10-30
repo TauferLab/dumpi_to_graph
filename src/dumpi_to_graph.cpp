@@ -158,6 +158,7 @@ int main(int argc, char** argv)
               << " finished event graph construction" << std::endl;
     
   
+    mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
 
     // Apply logical timestamps
     std::cout << "Rank: " << dumpi_to_graph_rank 

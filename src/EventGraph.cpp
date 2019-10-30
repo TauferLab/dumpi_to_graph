@@ -125,6 +125,9 @@ EventGraph::EventGraph( const Configuration& config,
   std::cout << "Rank: " << global_rank 
             << " constructed message order edges" << std::endl;
 #endif
+
+  comm_world.barrier();
+
   this->make_collective_edges();
 #ifdef PRINT_PROGRESS
   std::cout << "Rank: " << global_rank 
@@ -298,6 +301,31 @@ void EventGraph::disambiguate_channel_maps()
 
   this->channel_to_send_seq = translated_channel_to_send_seq;
   this->channel_to_recv_seq = translated_channel_to_recv_seq;
+
+  // Finally, update the channels for the vertex_id to channel map
+  std::unordered_map<size_t, Channel> vertex_id_to_translated_channel;
+  for ( auto kvp : this->vertex_id_to_channel ) {
+    auto vertex_id = kvp.first;
+    auto channel = kvp.second;
+    // Determine if this is a send or a receive. If it's a send, we know the 
+    // src member of the channel is the global rank. If it's a recv, we know the
+    // dst member of the channel is the global rank.
+    auto event_type = this->vertex_id_to_event_type.at( vertex_id );
+    if ( event_type == 0 ) {
+      auto translated_channel = this->comm_manager.translate_channel( channel, 0 );
+      vertex_id_to_translated_channel.insert( { vertex_id, translated_channel } );
+    }
+    else if ( event_type == 1 ) {
+      auto translated_channel = this->comm_manager.translate_channel( channel, 1 );
+      vertex_id_to_translated_channel.insert( { vertex_id, translated_channel } );
+    }
+    else {
+      std::stringstream ss;
+      ss << "Trying to translate channel for a non-send and non-recv event" << std::endl;
+      throw std::runtime_error( ss.str() );
+    }
+  }
+  this->vertex_id_to_channel = vertex_id_to_translated_channel;
 }
 
 
@@ -602,9 +630,6 @@ void EventGraph::exchange_remote_message_matching_data()
   exchange_message_matching_data_for_communicator( 4 );
   exchange_message_matching_data_for_communicator( 5 );
   exchange_message_matching_data_for_communicator( 6 );
-  exit(0);
-  ////exchange_message_matching_data_for_communicator( 5 );
-
 
 //  //////////////////////////// OLD IMPLEMENTATION //////////////////////////////
 //
