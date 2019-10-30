@@ -263,7 +263,10 @@ CommunicatorManager EventGraph::exchange_user_defined_comm_data()
 }
 
 
-
+// Goes through all data structures that involve a channel and makes sure that 
+// each channel's src and dst members refer to global ranks, rather than ranks
+// local to a user-defined communicator. Otherwise, message-edge construction
+// breaks/deadlocks
 void EventGraph::disambiguate_channel_maps()
 {
   std::unordered_map<Channel,std::vector<size_t>,ChannelHash> translated_channel_to_send_seq;
@@ -616,165 +619,15 @@ void EventGraph::exchange_message_matching_data_for_communicator( int current_co
   }
 }
 
-// Helper function for building the message edges between sends and receives 
-// held on distinct dumpi_to_graph processes.
-// Assumes that EventGraph::exchange_local_message_matching_data() has already
-// executed (i.e., that it has reduced the channel maps to include only channels
-// between trace processes that are held on different dumpi_to_graph processes)
 void EventGraph::exchange_remote_message_matching_data()
 {
-  int mpi_rc, rank;
-  mpi_rc = MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  
+  // Complete vertex ID exchange for messages in the global communicator
   exchange_message_matching_data_for_communicator( DUMPI_COMM_WORLD );
-  exchange_message_matching_data_for_communicator( 4 );
-  exchange_message_matching_data_for_communicator( 5 );
-  exchange_message_matching_data_for_communicator( 6 );
-
-//  //////////////////////////// OLD IMPLEMENTATION //////////////////////////////
-//
-//
-//  int n_recv_reqs = this->channel_to_send_seq.size();
-//  MPI_Request recv_reqs[ n_recv_reqs ];
-//  int recv_req_idx = 0;
-//
-//  // We will receive all remotely held recv sequences into a single contiguous
-//  // array. We determine the size of that array and a mapping between the 
-//  // relevant channels and corresponding offsets into the array here
-//  std::unordered_map<Channel, int, ChannelHash> channel_to_offset;
-//  int n_recv_vertex_ids = 0;
-//  for ( auto kvp : this->channel_to_send_seq ) {
-//    channel_to_offset.insert( { kvp.first, n_recv_vertex_ids } );
-//    n_recv_vertex_ids += kvp.second.size();
-//#ifdef PRINT_VERBOSE_PROGRESS
-//    std::cout << "sends: "
-//              << kvp.first << ": "
-//              << kvp.second.size()
-//              << std::endl;
-//#endif
-//  }
-//
-//#ifdef PRINT_VERBOSE_PROGRESS
-//  for ( auto kvp : this->channel_to_recv_seq ) {
-//    std::cout << "recvs: " 
-//              << kvp.first << ": "
-//              << kvp.second.size()
-//              << std::endl;
-//  }
-//#endif
-//
-//  //exit(0); 
-//
-////#ifdef VERBOSE_PROGRESS
-////  std::cout << "Rank: " << rank << " in function: " << __func__ << " "
-////            << " # recv requests to post is: " << n_recv_reqs
-////            << " # recv vertex IDs to receive is: " << n_recv_vertex_ids
-////            << std::endl;
-////#endif
-//
-//  // The shared receive buffer that will contain all of the recv vertex IDs from
-//  // remote dumpi_to_graph processes
-//  int recv_buffer[ n_recv_vertex_ids ]; 
-//
-//  // Loop over our send sequences and post a receive for each matching recv
-//  // sequence at the appropriate offset
-//  for ( auto kvp : this->channel_to_send_seq ) {
-//    // The trace rank of the receiver
-//    int src = kvp.first.get_dst();
-//    // The dumpi_to_graph process we need to get the matching recv sequence from
-//    int owner = this->config.lookup_owning_rank( src );
-//    // The tag of the message
-//    int tag = kvp.first.get_tag();
-//    // Offset into the recv buffer
-//    int recv_buffer_offset = channel_to_offset.at( kvp.first );
-//    // Number of recv vertex IDs we need to receive
-//    int n_elements = kvp.second.size();
-//
-//    int comm = kvp.first.get_comm();
-//
-//#ifdef SANITY_CHECK
-//    // This should never happen if the local message matching data exchange has
-//    // executed (properly), but no amount of paranoia is excessive in the realm
-//    // of MPI applications
-//    assert( owner != rank );
-//#endif
-//
-//    // Actually post the receive
-//    // FIXME: Right now we do all of these exchanges in MPI_COMM_WORLD, but we 
-//    // should probably mirror the communicators of the traced application. 
-//    // Not a high priority right now since our traced applications
-//    // of interest (e.g., Enzo) do everything in MPI_COMM_WORLD themselves.
-//    mpi_rc = MPI_Irecv( &recv_buffer[ recv_buffer_offset ],
-//                        n_elements,
-//                        MPI_INT, 
-//                        owner,
-//                        tag,
-//                        MPI_COMM_WORLD,
-//                        &recv_reqs[ recv_req_idx ] );
-//    // Update request index
-//    recv_req_idx++;
-//  }
-//  
-//  // Loop over our recv sequences and send each to the dumpi_to_graph process
-//  // with the matching send sequence
-//  for ( auto kvp : this->channel_to_recv_seq ) {
-//    // The trace rank of the sender
-//    int dst = kvp.first.get_src(); 
-//    // The dumpi_to_graph process we are sending this recv sequence to
-//    int owner = this->config.lookup_owning_rank( dst );
-//    // The tag of the message
-//    int tag = kvp.first.get_tag();
-//    // Number of recv vertex IDs we are sending
-//    int n_elements = kvp.second.size();
-//#ifdef SANITY_CHECK
-//    assert( owner != rank ); 
-//    assert( contains_no_invalid_vertex_ids( kvp.second ) );
-//#endif
-//    // FIXME: this copy is probably not necessary, but it's working and doesn't
-//    // seem to be a major source of slowdown 
-//    int send_buffer[ n_elements ];
-//    for ( int i=0; i<n_elements; ++i ) {
-//      send_buffer[i] = kvp.second[i];
-//    }
-//    // FIXME: We do a blocking send here because the non-blocking version was
-//    // delivering corrupted data to the receiver. Pretty sure it has something
-//    // to do with how MPI_Isend requires you to be very careful about not 
-//    // overwriting the send buffer (which I didn't think I was doing but...) 
-//    // Anyway, we use a blocking standard mode send now (which seems to be 
-//    // working fine on MVAPICH 2.3 at least). There's probably an edge case 
-//    // where this can deadlock though, so we should eventually implement this
-//    // as a buffered mode send. 
-//    // FIXME: Same MPI_COMM_WORLD issue as with the receives above
-//    mpi_rc = MPI_Send( &send_buffer[0],
-//                       n_elements,
-//                       MPI_INT,
-//                       owner,
-//                       tag,
-//                       MPI_COMM_WORLD );
-//  }
-//
-//
-//  // Complete all of the receives
-//  mpi_rc = MPI_Waitall( n_recv_reqs, recv_reqs, MPI_STATUSES_IGNORE );
-//
-//#ifdef SANITY_CHECK
-//  assert( validate_remote_recv_seqs( recv_buffer, 
-//                                     n_recv_vertex_ids,
-//                                     this->channel_to_send_seq, 
-//                                     channel_to_offset ) );
-//#endif
-//  
-//  // Now that we have all of the corresponding recv vertex IDs for this 
-//  // dumpi_to_graph process's sends, we can make the rest of the message edges
-//  for ( auto kvp : this->channel_to_send_seq ) {
-//    int offset = channel_to_offset.at( kvp.first );
-//    int n_sends = kvp.second.size();
-//    for ( int i=0; i<n_sends; ++i ) {
-//      auto edge = std::make_pair( kvp.second[i], recv_buffer[offset + i] );
-//      this->message_order_edges.push_back( edge );
-//    }
-//  }
-//  ///////////////////// END OLD IMPLEMENTATION //////////////////////////////
+  // Complete vertex ID exchange for messages in user-defined communicators
+  for ( auto kvp : this->comm_manager.get_comm_to_size() ) {
+    auto comm_id = kvp.first;
+    exchange_message_matching_data_for_communicator( comm_id );
+  }
 }
 
 void EventGraph::make_collective_edges()
