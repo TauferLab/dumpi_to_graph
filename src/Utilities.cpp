@@ -5,6 +5,7 @@
 #include <string>
 #include <regex>
 
+
 int trace_file_to_rank( const std::string trace_file )
 {
   std::regex rgx(".*-(\\d+)\\.bin");
@@ -16,6 +17,15 @@ int trace_file_to_rank( const std::string trace_file )
     ss << "Could not extract rank from tracefile: " << trace_file << std::endl;
     throw std::runtime_error( ss.str() );
   }
+}
+
+std::string get_csmpi_trace_file( std::string trace_dir, int trace_rank )
+{
+  std::string csmpi_trace_file = trace_dir;
+  csmpi_trace_file += "/csmpi/rank_";
+  csmpi_trace_file += std::to_string( trace_rank );
+  csmpi_trace_file += ".csmpi";
+  return csmpi_trace_file;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

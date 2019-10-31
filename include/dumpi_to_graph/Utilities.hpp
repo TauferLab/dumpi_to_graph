@@ -12,6 +12,9 @@
 // Boost
 #include <boost/functional/hash.hpp> 
 
+
+std::string get_csmpi_trace_file( std::string trace_dir, int trace_rank );
+
 int trace_file_to_rank( const std::string trace_file );
 
 // FIXME: Currently does not check PAPI performance counter data
