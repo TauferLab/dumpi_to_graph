@@ -16,6 +16,7 @@
 #include "Channel.hpp"
 #include "Trace.hpp"
 #include "CommunicatorManager.hpp" 
+#include "CSMPI_Trace.hpp"
 
 struct pair_hash
 {
@@ -39,7 +40,8 @@ class EventGraph
 {
 public:
   EventGraph( const Configuration& config,
-              const std::unordered_map<int,Trace*> rank_to_trace );
+              const std::unordered_map<int,Trace*> rank_to_trace,
+              const std::unordered_map<int,CSMPI_Trace*> rank_to_csmpi_trace);
   
   // Function for applying scalar logical timestamps
   void apply_scalar_logical_clock();

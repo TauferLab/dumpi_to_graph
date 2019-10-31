@@ -31,6 +31,8 @@
 #include "Debug.hpp"
 #include "CommunicatorManager.hpp" 
 #include "Utilities.hpp"
+#include "CSMPI_Trace.hpp"
+#include "Trace.hpp"
 
 // Super gross workaround for using size_t for scalar logical clock
 #if SIZE_MAX == UCHAR_MAX
@@ -61,7 +63,8 @@
 //   order edges whose sender vertex is in the program order of a trace rank 
 //   under this process's management
 EventGraph::EventGraph( const Configuration& config,
-                        const std::unordered_map<int,Trace*> rank_to_trace )
+                        const std::unordered_map<int,Trace*> rank_to_trace,
+                        const std::unordered_map<int,CSMPI_Trace*> rank_to_csmpi_trace )
 {
   // Establish MPI context
   // Boost is used here for broadcasting std::unordered_maps 

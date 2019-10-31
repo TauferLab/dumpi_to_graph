@@ -50,6 +50,9 @@ SOURCES+= CommunicatorManager.cpp
 # Utilities
 SOURCES+= Utilities.cpp
 SOURCES+= Debug.cpp
+# CSMPI trace stuff
+SOURCES+= CSMPI_Trace.cpp
+SOURCES+= CSMPI_Callstack.cpp
 
 OBJECTS=$(SOURCES:.cpp=.o)
 

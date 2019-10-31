@@ -11,7 +11,7 @@
 #include <fstream>
 
 #define REPORT_PROGRESS
-#define REPORT_VERBOSE_PROGRESS
+//#define REPORT_VERBOSE_PROGRESS
 #define REPORTING_RANK 0
 
 #define REPORT_TIMINGS
