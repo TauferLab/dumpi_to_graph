@@ -41,7 +41,13 @@ int cb_MPI_Recv(const dumpi_recv *prm,
 
   // Associate this receive event with its channel
   trace->register_recv( channel, event_vertex_id );
+
+  // Associate this receive event with a timestamp
   trace->register_dumpi_timestamp( wall_time );
+
+  // Associate this receive event with the MPI function call that generated it
+  trace->update_call_idx( "MPI_Recv" );
+  trace->associate_event_with_call( "MPI_Recv", event_vertex_id );
   
   // Return OK
   return 0;
@@ -70,7 +76,13 @@ int cb_MPI_Send(const dumpi_send *prm,
 
   // Associate this send event with its channel
   trace->register_send( channel, event_vertex_id );
+  
+  // Associate this send event with a timestamp
   trace->register_dumpi_timestamp( wall_time );
+  
+  // Associate this send event with the MPI function call that generated it
+  trace->update_call_idx( "MPI_Send" );
+  trace->associate_event_with_call( "MPI_Send", event_vertex_id );
   
   // Return OK
   return 0;
