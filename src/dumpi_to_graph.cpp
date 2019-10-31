@@ -183,8 +183,11 @@ int main(int argc, char** argv)
     mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
     
     // Merge all partial views of the event graph into a single igraph graph,
-    // set vertex and edge attributes, and write to disk
-    event_graph.merge_and_write();
+    // set vertex and edge attributes
+    event_graph.merge();
+
+    // Write out the event graph to disk
+    event_graph.write();
 
   } // End of loop over trace directories
 

@@ -82,6 +82,7 @@ EventGraph::EventGraph( const Configuration& config,
   // Set members
   this->config = config;
   this->rank_to_trace = rank_to_trace;
+  this->rank_to_csmpi_trace = rank_to_csmpi_trace;
   this->comm_manager = exchange_user_defined_comm_data();
   
   disambiguate_vertex_ids(); 
@@ -775,7 +776,7 @@ void EventGraph::apply_scalar_logical_clock()
 
 
 
-void EventGraph::merge_and_write()
+void EventGraph::merge()
 {
   boost::mpi::communicator world;
   int rank = world.rank();
@@ -878,8 +879,10 @@ void EventGraph::merge_and_write()
     // Initialize the graph
     size_t n_vertices = vertex_ids.size();
     igraph_t graph;
+
     // boolean parameter makes the graph directed
     igraph_rc = igraph_empty( &graph, n_vertices, true ); 
+
 #ifdef REPORT_PROGRESS
     std::cout << "Base igraph object constructed" << std::endl;
 #endif
@@ -925,7 +928,20 @@ void EventGraph::merge_and_write()
       edge_idx++;
     }
     igraph_rc = igraph_add_edges( &graph, &edges, 0 );
-  
+ 
+    // Assign
+    this->_graph = graph;
+
+  }
+}
+
+void EventGraph::write() const
+{
+  int mpi_rc, rank;
+  mpi_rc = MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+  if ( rank == 0 ) {
+    int igraph_rc;
+
     std::string trace_dir = this->config.get_trace_dirs()[0];
     std::stringstream ss;
     ss << trace_dir << "/event_graph.graphml"; 
@@ -933,15 +949,14 @@ void EventGraph::merge_and_write()
 
     FILE* outfile;
     outfile = fopen( output_path.c_str(), "w" );
-#ifdef REPORT_PROGRESS
-    std::cout << "Writing event graph..." << std::endl;
-#endif
-    igraph_rc = igraph_write_graph_graphml( &graph, outfile, false );
+    igraph_rc = igraph_write_graph_graphml( &(this->_graph), outfile, false );
     fclose( outfile );
+#ifdef REPORT_PROGRESS
+    std::cout << "Wrote event graph to: " << output_path
+              << std::endl;
+#endif
   }
 }
-
-
 
 
 
