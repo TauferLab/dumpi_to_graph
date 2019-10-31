@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <vector>
 #include <string>
+#include <sstream>
 #include <fstream>
 #include <iostream>
 
@@ -429,12 +430,7 @@ void EventGraph::disambiguate_vertex_ids()
 
 
 
-//////////////// EDGE CONSTRUCTION //////////////////////////
-
-
-
-
-
+//////////////// Top-level functions for edge construction /////////////////////
 
 // Constructs all program order edges 
 void EventGraph::make_program_order_edges()
@@ -459,28 +455,30 @@ void EventGraph::make_program_order_edges()
 // edges
 void EventGraph::make_message_order_edges()
 {
-  //this->exchange_local_message_matching_data();
+  this->exchange_local_message_matching_data();
   this->exchange_remote_message_matching_data();
 }
 
-// Helper function for building the message edges between sends and receives
-// held on the same dumpi_to_graph process
+// TODO
+void EventGraph::make_collective_edges()
+{
+}
+
+//////////////// Helper functions for message edge construction ////////////////
+
+// Builds message edges between send and recv vertices that are owned by the 
+// same dumpi_to_graph process
 void EventGraph::exchange_local_message_matching_data()
 {
   int mpi_rc, rank;
   mpi_rc = MPI_Comm_rank( MPI_COMM_WORLD, &rank );
-  
-
   // We need to iterate over this local copy so that we don't invalidate when erasing
   auto channel_to_send_seq_copy = this->channel_to_send_seq;
-
   for ( auto kvp : channel_to_send_seq_copy ) {
-
     // The rank of the receiving process in the traced application
     int dst = kvp.first.get_dst();
     // The dumpi_to_graph process managing that rank
     int owning_rank = this->config.lookup_owning_rank( dst );
-
     // If this dumpi_to_graph process also owns the matching receive sequence,
     // we can determine the set of message edges for this channel without any
     // communication between dumpi_to_graph processes
@@ -506,7 +504,21 @@ void EventGraph::exchange_local_message_matching_data()
     }
   }
 }
-  
+
+// Builds message edges between send and recv vertices that are owened by 
+// different dumpi_to_graph processes. 
+void EventGraph::exchange_remote_message_matching_data()
+{
+  // Complete vertex ID exchange for messages in the global communicator
+  exchange_message_matching_data_for_communicator( DUMPI_COMM_WORLD );
+  // Complete vertex ID exchange for messages in user-defined communicators
+  for ( auto kvp : this->comm_manager.get_comm_to_size() ) {
+    auto comm_id = kvp.first;
+    exchange_message_matching_data_for_communicator( comm_id );
+  }
+}
+
+// Builds message edges for messages that occurred within a specified communicator  
 void EventGraph::exchange_message_matching_data_for_communicator( int current_comm_id )
 {
   int mpi_rc, rank;
@@ -551,12 +563,6 @@ void EventGraph::exchange_message_matching_data_for_communicator( int current_co
       int tag = kvp.first.get_tag();
       int recv_buffer_offset = channel_to_offset.at( kvp.first );
       int n_elements = kvp.second.size();
-
-      //std::cout << "Rank: " << rank
-      //          << " Posting Recv for Channel: " << kvp.first
-      //          << " For # elements: " << n_elements
-      //          << std::endl;
-
       mpi_rc = MPI_Irecv( &recv_buffer[ recv_buffer_offset ],
                           n_elements,
                           MPI_INT, 
@@ -582,12 +588,6 @@ void EventGraph::exchange_message_matching_data_for_communicator( int current_co
       for ( int i=0; i<n_elements; ++i ) {
         send_buffer[i] = kvp.second[i];
       }
-      
-      //std::cout << "Rank: " << rank
-      //          << " Sending in Channel: " << kvp.first
-      //          << " with # elements: " << n_elements
-      //          << std::endl;
-
       mpi_rc = MPI_Send( &send_buffer[0],
                          n_elements,
                          MPI_INT,
@@ -602,9 +602,11 @@ void EventGraph::exchange_message_matching_data_for_communicator( int current_co
 
   mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
 
+#ifdef REPORT_PROGRESS
   std::cout << "Rank: " << rank 
             << " completed exchange for communicator: " << current_comm_id 
             << std::endl;
+#endif 
   // Now that we have all of the corresponding recv vertex IDs for this 
   // dumpi_to_graph process's sends, we can make the rest of the message edges
   for ( auto kvp : this->channel_to_send_seq ) {
@@ -617,23 +619,13 @@ void EventGraph::exchange_message_matching_data_for_communicator( int current_co
       }
     }
   }
+#ifdef REPORT_PROGRESS
+  std::cout << "Rank: " << rank 
+            << " constructed message edges for communicator: " << current_comm_id 
+            << std::endl;
+#endif 
 }
 
-void EventGraph::exchange_remote_message_matching_data()
-{
-  // Complete vertex ID exchange for messages in the global communicator
-  exchange_message_matching_data_for_communicator( DUMPI_COMM_WORLD );
-  // Complete vertex ID exchange for messages in user-defined communicators
-  for ( auto kvp : this->comm_manager.get_comm_to_size() ) {
-    auto comm_id = kvp.first;
-    exchange_message_matching_data_for_communicator( comm_id );
-  }
-}
-
-void EventGraph::make_collective_edges()
-{
-  // FIXME: an implementation would be nice 
-}
 
 
 // A function to apply scalar logical timestamps to each vertex. Effectively, 
@@ -652,31 +644,20 @@ void EventGraph::apply_scalar_logical_clock()
   int initial_lts = 0; 
   int tick = 1;
  
-#ifdef REPORT_PROGRESS
-  std::cout << "Rank: " << rank << " applying logical clock" << std::endl;
-#endif
-  
   for ( auto kvp : this->rank_to_trace ) {
     auto event_seq = kvp.second->get_event_seq();
     size_t n_vertices = event_seq.size();
     size_t vertex_id_offset = kvp.second->get_vertex_id_offset();
-#ifdef REPORT_PROGRESS
-    std::cout << "Rank: " << rank
-              << " handling trace rank: " << kvp.first
-              << " with event sequence of length: " << n_vertices
-              << " and vertex ID offset: " << vertex_id_offset
-              << std::endl;
-#endif
     for ( int i=0; i<n_vertices; ++i ) {
       auto event_type = event_seq[i];
       size_t vertex_id = i + vertex_id_offset;
-
-      //std::cout << "Rank: " << rank 
-      //          << " handling trace rank: " << kvp.first
-      //          << " assigning LTS to vertex: " << vertex_id
-      //          << " with event type: " << type_to_name.at( event_type )
-      //          << std::endl;
-
+#ifdef REPORT_VERBOSE_PROGRESS
+      std::cout << "Rank: " << rank 
+                << " handling trace rank: " << kvp.first
+                << " assigning LTS to vertex: " << vertex_id
+                << " with event type: " << type_to_name.at( event_type )
+                << std::endl;
+#endif
       // Case 1: Init events always get the initial logical time stamp
       if ( event_type == 2 ) {
 #ifdef PARANOID_INSERTION
@@ -684,10 +665,11 @@ void EventGraph::apply_scalar_logical_clock()
         if ( vid_search == this->logical_timestamps.end() ) {
           this->logical_timestamps.insert( { vertex_id, initial_lts } );
         } else {
-          std::stringstream ss;
-          ss << "Vertex ID: " << vertex_id 
-             << " has already been assigned a logical timestamp" << std::endl;
-          throw std::runtime_error( ss.str() );
+          std::stringstream oss;
+          oss << "Vertex ID: " << vertex_id 
+              << " has already been assigned a logical timestamp" 
+              << std::endl;
+          throw std::runtime_error( oss.str() );
         }
 #else
         this->logical_timestamps.insert( { vertex_id, initial_lts } );
@@ -699,27 +681,40 @@ void EventGraph::apply_scalar_logical_clock()
       else if ( event_type == 0 ) {
         // Get local predecessor's lts
         size_t local_pred_vertex_id = vertex_id - 1;
-        
+       
+        // Check that this send vertex's local predecessor already has a logical 
+        // time stamp
         auto search = this->logical_timestamps.find( local_pred_vertex_id );
         if ( search == this->logical_timestamps.end() ) {
-          std::cout << "Rank: " << rank << " send vertex: " << vertex_id
-                    << " local predecessor: " << local_pred_vertex_id
-                    << " has no lts" << std::endl;
-          exit(1);
+          std::ostringstream oss;
+          oss << "Rank: " << rank 
+              << " send vertex: " << vertex_id
+              << " local predecessor: " << local_pred_vertex_id
+              << " has no lts" 
+              << std::endl;
+          throw std::runtime_error( oss.str() ); 
         }
         size_t local_pred_lts = this->logical_timestamps.at( local_pred_vertex_id );
+
         // Get my lts by incrementing local pred's
         size_t lts = local_pred_lts + tick;
         this->logical_timestamps.insert( { vertex_id, lts } );
         
+        // Check that this send vertex has a channel associated with it so that
+        // we can propagate its logical time stamp to its remote successor
+        // (i.e., a recv vertex owned by some other dumpi_to_graph process)
         auto search2 = this->vertex_id_to_channel.find( vertex_id );
         if ( search2 == this->vertex_id_to_channel.end() ) {
-          std::cout << "Rank: " << rank << " send vertex: " << vertex_id
-                    << " not mapped to channel" << std::endl;
-          exit(1);
+          std::ostringstream oss;
+          oss << "Rank: " << rank 
+              << " send vertex: " << vertex_id
+              << " not mapped to channel" 
+              << std::endl;
+          throw std::runtime_error( oss.str() ); 
         }
-        
         Channel channel = this->vertex_id_to_channel.at( vertex_id );
+
+        // Propagate the send vertex's logical time stamp to its remote successor
         int dst = channel.get_dst();
         int tag = channel.get_tag();
         int owner = this->config.lookup_owning_rank( dst );
@@ -732,13 +727,17 @@ void EventGraph::apply_scalar_logical_clock()
         // Get local predecessor's lts
         size_t local_pred_vertex_id = vertex_id - 1;
         
+        // Check that this recv vertex's local predecessor already has a logical
+        // time stamp
         auto search = this->logical_timestamps.find( local_pred_vertex_id );
         if ( search == this->logical_timestamps.end() ) {
-          std::cout << "Rank: " << rank << " recv vertex: " << vertex_id
-                    << " local predecessor has no lts" << std::endl;
-          exit(0);
+          std::ostringstream oss;
+          oss << "Rank: " << rank 
+              << " recv vertex: " << vertex_id
+              << " local predecessor has no lts" 
+              << std::endl;
+          throw std::runtime_error( oss.str() ); 
         }
-
         size_t local_pred_lts = this->logical_timestamps.at( local_pred_vertex_id );
 
         // Get remote predecessor's lts
@@ -750,11 +749,15 @@ void EventGraph::apply_scalar_logical_clock()
         size_t remote_pred_lts = 0;
         mpi_rc = MPI_Recv( &remote_pred_lts, 1, my_MPI_SIZE_T, src, tag,
                            MPI_COMM_WORLD, MPI_STATUS_IGNORE );
+
+        // Calculate this recv's logical time stamp according to Lamport clock
+        // rule
         size_t lts = std::max( local_pred_lts, remote_pred_lts ) + tick;
         this->logical_timestamps.insert( { vertex_id, lts } );
 
       }
       // Case 4: Everything else. 
+      // Currently just vertices representing "barrier" events
       else {
         // Get local predecessor's lts
         size_t local_pred_vertex_id = vertex_id - 1;

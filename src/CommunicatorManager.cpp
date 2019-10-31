@@ -131,7 +131,6 @@ CommunicatorManager::CommunicatorManager( size_t global_comm_size )
 {
   // Set size of global communicator
   comm_to_size.insert( { DUMPI_COMM_WORLD, global_comm_size } );
-
 }
 
 CommunicatorManager CommunicatorManager::operator=( const CommunicatorManager& rhs )
@@ -201,17 +200,6 @@ void CommunicatorManager::calculate_global_rank_to_comm_rank_mapping()
     comm_to_idx.insert( { kvp.first, idx } );
   }
 
-  //if ( my_rank == 12 ) {
-  //  for ( auto kvp : comm_to_idx ) {
-  //    std::cout << "Comm: " << kvp.first
-  //              << " Idx: " << kvp.second
-  //              << std::endl;
-  //  }
-  //}
-
-  //exit(0);
-
-
   // Proceed one communicator at a time
   for ( auto kvp : comm_to_rank_to_color ) {
     auto comm_id = kvp.first;
@@ -255,12 +243,6 @@ void CommunicatorManager::calculate_global_rank_to_comm_rank_mapping()
       for ( auto current_key : keys_in_group ) {
         // Found comm rank of this global rank
         if ( current_key == key ) {
-          //if ( my_rank == 12 ) {
-          //  std::cout << "Global Rank: " << global_rank 
-          //            << " Comm: " << comm_id
-          //            << " Comm Rank: " << comm_rank
-          //            << std::endl;
-          //}
           this->comm_to_global_rank_to_comm_rank.at( comm_id ).insert( { global_rank, comm_rank } );
         }
         comm_rank++;

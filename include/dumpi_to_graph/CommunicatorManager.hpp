@@ -61,6 +61,8 @@ public:
   CommunicatorManager operator=( const CommunicatorManager& rhs );
   // Convenience printer
   void print() const;
+
+
 private:
   std::unordered_map<int, std::unordered_map<std::pair<int,std::vector<int>>,int,rank_seq_hash>> comm_to_translator;
 
