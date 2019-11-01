@@ -29,6 +29,7 @@ public:
 
   void update_call_idx( std::string mpi_fn );
   void associate_event_with_call( std::string mpi_fn, size_t event_vertex_id );
+  std::vector<std::pair<std::string,size_t>> get_mpi_fn_seq() const;
 
   std::string get_trace_dir() const;
   size_t get_next_vertex_id();

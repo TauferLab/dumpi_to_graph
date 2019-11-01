@@ -45,20 +45,12 @@ CSMPI_Trace::CSMPI_Trace( std::string csmpi_trace_file,
     std::ssub_match func_submatch = mpi_function_match[1];
     std::string function_name = func_submatch.str();
     // Make entry in map from function to sequence of callstacks
-    std::vector<std::pair<int,CSMPI_Callstack>> callstack_seq;
-    this->fn_to_callstack_seq.insert( { function_name, callstack_seq } );
-
-    //if ( rank == REPORTING_RANK ) {
-    //  std::cout << "Ingesting callstacks for function: " << function_name << std::endl;
-    //}
+    std::unordered_map<int,CSMPI_Callstack> idx_to_callstack;
+    this->fn_to_idx_to_callstack.insert( { function_name, idx_to_callstack } );
 
     // Now consume callstacks until we hit another MPI function name 
     while( std::getline(input, current_line ) &&
            !std::regex_match( current_line, mpi_function_match, mpi_function_regex)) {
-
-      //if ( rank == REPORTING_RANK ) {
-      //  std::cout << "Callstack line: " << current_line << std::endl;
-      //}
 
       if ( std::regex_match( current_line, callstack_match, callstack_regex ) ) {
 
@@ -82,17 +74,28 @@ CSMPI_Trace::CSMPI_Trace( std::string csmpi_trace_file,
         CSMPI_Callstack callstack( call_idx, addresses );
   
         // Associate with function
-        auto pair = std::make_pair( call_idx, callstack );
-        this->fn_to_callstack_seq.at( function_name ).push_back( pair );
+        //auto pair = std::make_pair( call_idx, callstack );
+        //this->fn_to_callstack_seq.at( function_name ).push_back( pair );
+        this->fn_to_idx_to_callstack.at( function_name ).insert( { call_idx, callstack } );
       }
     }
   }
-
-  //for ( auto kvp : fn_to_callstack_seq ) {
-  //  std::cout << "Rank: " << rank
-  //            << "\t" << kvp.first << " --> " 
-  //            << kvp.second.size() << " callstacks"
-  //            << std::endl;
-  //}
 }
   
+std::string CSMPI_Trace::lookup_callstack( std::string fn, int call_idx ) const
+{
+  // A default value to return in the even that the specified (fn, call_idx)
+  // does not have a callstack associated with it in the CSMPI trace
+  std::string callstack_str = "";
+  auto key = std::make_pair( fn, call_idx );
+  auto fn_search = this->fn_to_idx_to_callstack.find( fn );
+  if ( fn_search != this->fn_to_idx_to_callstack.end() ) {
+    auto idx_to_callstack = this->fn_to_idx_to_callstack.at( fn );
+    auto idx_search = idx_to_callstack.find( call_idx );
+    if ( idx_search != idx_to_callstack.end() ) {
+      auto callstack = idx_to_callstack.at( call_idx );
+      callstack_str = callstack.str();
+    }
+  }
+  return callstack_str;
+}

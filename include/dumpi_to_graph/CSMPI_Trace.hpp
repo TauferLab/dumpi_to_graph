@@ -15,11 +15,12 @@ class CSMPI_Trace
 {
 public:
   CSMPI_Trace( std::string csmpi_trace_file, int trace_file_rank );
+  std::string lookup_callstack( std::string fn, int call_idx ) const;
 private:
   std::string trace_file;
   int trace_rank;
   std::unordered_map<std::string,
-                     std::vector<std::pair<int,CSMPI_Callstack>>> fn_to_callstack_seq;
+                     std::unordered_map<int,CSMPI_Callstack>> fn_to_idx_to_callstack;
 };
 
 #endif 

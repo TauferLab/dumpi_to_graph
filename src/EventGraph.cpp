@@ -74,7 +74,7 @@ EventGraph::EventGraph( const Configuration& config,
   mpi_rc = MPI_Comm_size( MPI_COMM_WORLD, &n_procs );
   boost::mpi::communicator comm_world;
 
-#ifdef PRINT_PROGRESS
+#ifdef REPORT_PROGRESS
   std::cout << "Rank: " << global_rank 
             << " starting event graph construction" << std::endl;
 #endif
@@ -86,52 +86,54 @@ EventGraph::EventGraph( const Configuration& config,
   this->comm_manager = exchange_user_defined_comm_data();
   
   disambiguate_vertex_ids(); 
-  
   comm_world.barrier();
 
   merge_trace_data();
- 
   comm_world.barrier();
 
-  //// Sanity check user-defined comm data
-  //if ( global_rank == 12 ) {
-  //  this->comm_manager.print(); 
-  //}
+
+#ifdef REPORT_VERBOSE_PROGRESS
+  // Sanity check user-defined comm data
+  if ( global_rank == REPORTING_RANK ) {
+    this->comm_manager.print(); 
+  }
+#endif
 
   disambiguate_channel_maps();
-
   comm_world.barrier();
-  //for ( auto kvp : channel_to_send_seq ) {
-  //  std::cout << "Rank: " << global_rank
-  //            << " Channel: " << kvp.first
-  //            << " # Sends: " << kvp.second.size()
-  //            << std::endl;
-  //}
-  //for ( auto kvp : channel_to_recv_seq ) {
-  //  std::cout << "Rank: " << global_rank
-  //            << " Channel: " << kvp.first
-  //            << " # Recvs: " << kvp.second.size()
-  //            << std::endl;
-  //}
-  //comm_world.barrier();
-  //exit(0);
+
+#ifdef REPORT_VERBOSE_PROGRESS
+  for ( auto kvp : channel_to_send_seq ) {
+    std::cout << "Rank: " << global_rank
+              << " Channel: " << kvp.first
+              << " # Sends: " << kvp.second.size()
+              << std::endl;
+  }
+  for ( auto kvp : channel_to_recv_seq ) {
+    std::cout << "Rank: " << global_rank
+              << " Channel: " << kvp.first
+              << " # Recvs: " << kvp.second.size()
+              << std::endl;
+  }
+  comm_world.barrier();
+#endif
 
   // Construct edges
   this->make_program_order_edges();
+  comm_world.barrier();
+
 #ifdef PRINT_PROGRESS
   std::cout << "Rank: " << global_rank 
             << " constructed program order edges" << std::endl;
 #endif
 
+  this->make_message_order_edges();
   comm_world.barrier();
 
-  this->make_message_order_edges();
 #ifdef PRINT_PROGRESS
   std::cout << "Rank: " << global_rank 
             << " constructed message order edges" << std::endl;
 #endif
-
-  comm_world.barrier();
 
   this->make_collective_edges();
 #ifdef PRINT_PROGRESS
@@ -163,8 +165,6 @@ CommunicatorManager EventGraph::exchange_user_defined_comm_data()
     comm_manager.aggregate( trace_comm_manager );
   }
   
-  //std::cout << "Rank: " << global_rank << " broacasting communicator data" << std::endl;
-  
   // Collect all remotely held comm_managers
   std::vector<CommunicatorManager> remote_comm_managers;
   for ( int rank=0; rank < n_procs; rank++ ) {
@@ -180,8 +180,6 @@ CommunicatorManager EventGraph::exchange_user_defined_comm_data()
       remote_comm_managers.push_back( payload );     
     }
   }
-
-  //std::cout << "Rank: " << global_rank << " received all communicator data" << std::endl;
 
   // Aggregate the data held in the received comm managers
   for ( auto cm : remote_comm_managers ) {
@@ -364,9 +362,10 @@ void EventGraph::merge_trace_data()
       auto channel = kvp2.second;
       this->vertex_id_to_channel.insert( { vertex_id, channel } );
     }
-    // Merge in event type, pid, and wall-time data
+    // Merge in event type, pid, wall-time, and generating function call  data
     auto event_seq = kvp.second->get_event_seq();
     auto wall_time_seq = kvp.second->get_wall_time_seq(); 
+    auto fn_call_seq = kvp.second->get_mpi_fn_seq();
     size_t n_events = event_seq.size();
     size_t initial_vertex_id = kvp.second->get_initial_vertex_id();
     for ( int i=0; i<n_events; ++i ) {
@@ -374,12 +373,26 @@ void EventGraph::merge_trace_data()
       double wall_time = wall_time_seq[i];
       size_t vertex_id = initial_vertex_id + i;
       int pid = kvp.first; 
+      auto fn_idx_pair = fn_call_seq[i];
       this->vertex_ids.push_back( vertex_id );
       this->vertex_id_to_event_type.insert( { vertex_id, event_type } );
       this->vertex_id_to_wall_time.insert( { vertex_id, wall_time } );
       this->vertex_id_to_pid.insert( { vertex_id, pid } );
+      this->vertex_id_to_fn_call.insert( { vertex_id, fn_idx_pair } );
     }
   }
+
+  // Merge data from CSMPI traces
+  for ( auto kvp : vertex_id_to_fn_call ) {
+    auto vertex_id = kvp.first;
+    auto fn = kvp.second.first;
+    auto call_idx = kvp.second.second;
+    auto pid = this->vertex_id_to_pid.at( vertex_id );
+    auto search = this->rank_to_csmpi_trace.find( pid );
+    auto csmpi_trace_ptr = this->rank_to_csmpi_trace.at( pid );
+    auto callstack = csmpi_trace_ptr->lookup_callstack( fn, call_idx );
+    this->vertex_id_to_callstack.insert( { vertex_id, callstack } );
+  } 
 }
 
 void EventGraph::disambiguate_vertex_ids()
@@ -788,6 +801,7 @@ void EventGraph::merge()
   int event_type_map_tag     = 2;
   int wall_time_map_tag      = 3;
   int pid_map_tag            = 4;
+  int callstack_map_tag      = 5;
   int message_order_edge_tag = 17;
   int program_order_edge_tag = 36;
 
@@ -797,6 +811,7 @@ void EventGraph::merge()
   std::unordered_map<size_t,uint8_t> vertex_id_to_event_type = this->vertex_id_to_event_type;
   std::unordered_map<size_t,double> vertex_id_to_wall_time = this->vertex_id_to_wall_time;
   std::unordered_map<size_t,int> vertex_id_to_pid = this->vertex_id_to_pid;
+  std::unordered_map<size_t,std::string> vertex_id_to_callstack = this->vertex_id_to_callstack;
   std::vector<std::pair<size_t,size_t>> message_order_edges = this->message_order_edges;
   std::vector<std::pair<size_t,size_t>> program_order_edges = this->program_order_edges;
 
@@ -816,6 +831,7 @@ void EventGraph::merge()
       std::unordered_map<size_t,uint8_t> event_type_map_recv_buffer;
       std::unordered_map<size_t,double> wall_time_map_recv_buffer;
       std::unordered_map<size_t,int> pid_map_recv_buffer;
+      std::unordered_map<size_t,std::string> callstack_map_recv_buffer;
       // Receive logical timestamps
       world.recv( i, lts_map_tag, lts_map_recv_buffer );
       for ( auto kvp : lts_map_recv_buffer ) {
@@ -836,6 +852,11 @@ void EventGraph::merge()
       for ( auto kvp : pid_map_recv_buffer ) {
         vertex_id_to_pid.insert( kvp );
       }
+      // Receive generating function calls
+      world.recv( i, callstack_map_tag, callstack_map_recv_buffer );
+      for ( auto kvp : callstack_map_recv_buffer ) {
+        vertex_id_to_callstack.insert( kvp );
+      } 
 
       // A common recv buffer for edges
       std::vector<std::pair<size_t,size_t>> edges_recv_buffer;
@@ -861,6 +882,7 @@ void EventGraph::merge()
     world.send( 0, event_type_map_tag, this->vertex_id_to_event_type );
     world.send( 0, wall_time_map_tag, this->vertex_id_to_wall_time );
     world.send( 0, pid_map_tag, this->vertex_id_to_pid );
+    world.send( 0, callstack_map_tag, this->vertex_id_to_callstack );
     // Send edges
     world.send( 0, message_order_edge_tag, this->message_order_edges );
     world.send( 0, program_order_edge_tag, this->program_order_edges );
@@ -892,12 +914,20 @@ void EventGraph::merge()
     const char lts_attr_name[16]        = "logical_time";
     const char wtime_attr_name[16]      = "wall_time";
     const char pid_attr_name[16]        = "process_id";
+    const char callstack_attr_name[16]  = "callstack";
+
     for ( auto vid : vertex_ids ) {
+
+      // Get vertex labels available directly from DUMPI trace
       uint8_t event_type = vertex_id_to_event_type[vid];
       const std::string event_type_str = type_to_name[event_type];
       size_t lts = vertex_id_to_lts[vid];
       double wtime = vertex_id_to_wall_time[vid];
       int pid = vertex_id_to_pid[vid];
+
+      // Lookup callstack label if available from CSMPI trace
+      auto callstack = vertex_id_to_callstack[vid];
+
       // Set event type vertex attribute
       igraph_rc = igraph_cattribute_VAS_set( &graph, event_type_attr_name, vid, event_type_str.c_str() );
       // Set logical timestamp vertex attribute
@@ -906,6 +936,8 @@ void EventGraph::merge()
       igraph_rc = igraph_cattribute_VAN_set( &graph, wtime_attr_name, vid, wtime );
       // Set process ID vertex attribute
       igraph_rc = igraph_cattribute_VAN_set( &graph, pid_attr_name, vid, pid );
+      // Set callstack vertex attribute
+      igraph_rc = igraph_cattribute_VAS_set( &graph, callstack_attr_name, vid, callstack.c_str() );
     }
 #ifdef REPORT_PROGRESS
     std::cout << "Vertex attributes added" << std::endl;

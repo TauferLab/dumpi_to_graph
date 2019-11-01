@@ -555,10 +555,19 @@ std::vector<uint8_t> Trace::get_event_seq() const
 {
   return this->event_seq;
 }
-  
+
+// Returns the sequence of wall-time time stamps associated with events
 std::vector<double> Trace::get_wall_time_seq() const
 {
   return this->wall_time_seq;
+}
+
+// Returns the sequence of (MPI_Function, function_call_index) that generated
+// each event. This is used to associate other non-DUMPI trace data (e.g., 
+// callstacks) to events in the event sequence
+std::vector<std::pair<std::string,size_t>> Trace::get_mpi_fn_seq() const 
+{
+  return this->_mpi_fn_seq;
 }
 
 // Returns the mapping from vertex IDs to channels

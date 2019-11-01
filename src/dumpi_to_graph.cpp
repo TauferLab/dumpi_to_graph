@@ -127,7 +127,7 @@ int main(int argc, char** argv)
       auto csmpi_trace_file = get_csmpi_trace_file( trace_dir, trace_file_rank );
       CSMPI_Trace* csmpi_trace_ptr = new CSMPI_Trace( csmpi_trace_file,
                                                       trace_file_rank );
-      //rank_to_csmpi_trace.insert( { trace_file_rank, csmpi_trace_ptr } );
+      rank_to_csmpi_trace.insert( { trace_file_rank, csmpi_trace_ptr } );
 #ifdef REPORT_TIMINGS
       double ingest_csmpi_trace_file_elapsed_time = MPI_Wtime() - ingest_csmpi_trace_file_start_time;
       std::cout << "\tRank: " << dumpi_to_graph_rank << ", "

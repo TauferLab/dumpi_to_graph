@@ -102,7 +102,6 @@ private:
   // Data directly copied from configuration and traces
   Configuration config;
   std::unordered_map<int,Trace*> rank_to_trace;
-
   std::unordered_map<int,CSMPI_Trace*> rank_to_csmpi_trace;
 
   // Built up from each trace rank's individual view of the communicator data
@@ -116,6 +115,9 @@ private:
   std::unordered_map<size_t,uint8_t> vertex_id_to_event_type;
   std::unordered_map<size_t,double> vertex_id_to_wall_time;
   std::unordered_map<size_t,int> vertex_id_to_pid; 
+
+  std::unordered_map<size_t,std::pair<std::string,size_t>> vertex_id_to_fn_call;
+  std::unordered_map<size_t,std::string> vertex_id_to_callstack;
 
 };
 
