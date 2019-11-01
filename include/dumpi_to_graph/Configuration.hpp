@@ -34,7 +34,13 @@ public:
       represent_unmatched_tests(represent_unmatched_tests),
       condense_unmatched_tests(condense_unmatched_tests),
       condense_matched_tests(condense_matched_tests)
-      {}
+      { 
+        for ( auto vlabel : vertex_labels ) {
+          if ( vlabel == "callstack" ) {
+            this->csmpi_flag = true;
+          }
+        }
+      }
 
   void compute_trace_file_assignment();
   void set_trace_dirs(std::vector<std::string> trace_dirs);
@@ -49,7 +55,8 @@ public:
   bool get_represent_unmatched_tests_flag() const;
   bool get_condense_unmatched_tests_flag() const;
   bool get_condense_matched_tests_flag() const;
-  
+  bool has_csmpi() const;
+
   // Accessors for querying trace file to dumpi_to_graph assignment 
   std::unordered_map<std::string, std::unordered_map<int,std::vector<int>>> get_dir_to_trace_rank_assignments() const;
   std::unordered_map<std::string, std::unordered_map<int,std::vector<std::string>>> get_dir_to_trace_file_assignments() const;
@@ -110,9 +117,17 @@ private:
   // Define what events to represent in the event graph and how to represent 
   // them
   std::set<std::string> mpi_functions;
+
+  // Define which ordering relationships between events will be represented by
+  // edges in the event graph
   std::set<std::string> happens_before_orders;
+
+  // Define which data we will associate with each vertex in the event graph
   std::set<std::string> vertex_labels;
+
+  // Define which data we will associate with each edge in the event graph
   std::set<std::string> edge_labels; 
+
   // Are we going to represent unmatched tests at all? 
   bool represent_unmatched_tests = false; 
   // If we do, will each unmatched test, of which there could be very many, 
@@ -122,7 +137,12 @@ private:
   // Will we do a similar condensing into a single vertex for matching functions
   // that can result in more than one match? (e.g., MPI_Testsome) 
   bool condense_matched_tests = false;
-  
+
+  // A flag to determine whether we will ingest CSMPI traces in addition to 
+  // DUMPI traces. This will be set to true if "callstack" is a requested 
+  // vertex label. 
+  bool csmpi_flag = false;
+
   // Boost serialization stuff so that the root process can read in the config
   // and broadcast it to everyone else. 
   friend class boost::serialization::access; 
@@ -140,14 +160,19 @@ private:
     ar & dir_to_trace_rank_assignments;
     ar & dir_to_trace_file_assignments;
     ar & trace_rank_to_owning_rank;
+    ar & csmpi_flag;
   }
-  
+
 };
 
+// Helper function to parse the JSON configuration file
 Configuration parse_config_file( std::string config_file_path );
 
+// Called in main to construct a configuration object from command-line args
 Configuration parse_args( int argc, char** argv );
 
+// Used to distribute the configuration object to all dumpi_to_graph processes
+// after the root process has read the configuration file and constructed it.
 void broadcast_config( Configuration& config );
 
 

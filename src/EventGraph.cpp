@@ -382,17 +382,19 @@ void EventGraph::merge_trace_data()
     }
   }
 
-  // Merge data from CSMPI traces
-  for ( auto kvp : vertex_id_to_fn_call ) {
-    auto vertex_id = kvp.first;
-    auto fn = kvp.second.first;
-    auto call_idx = kvp.second.second;
-    auto pid = this->vertex_id_to_pid.at( vertex_id );
-    auto search = this->rank_to_csmpi_trace.find( pid );
-    auto csmpi_trace_ptr = this->rank_to_csmpi_trace.at( pid );
-    auto callstack = csmpi_trace_ptr->lookup_callstack( fn, call_idx );
-    this->vertex_id_to_callstack.insert( { vertex_id, callstack } );
-  } 
+  // Merge data from CSMPI traces if available
+  if ( this->config.has_csmpi() ) {
+    for ( auto kvp : vertex_id_to_fn_call ) {
+      auto vertex_id = kvp.first;
+      auto fn = kvp.second.first;
+      auto call_idx = kvp.second.second;
+      auto pid = this->vertex_id_to_pid.at( vertex_id );
+      auto search = this->rank_to_csmpi_trace.find( pid );
+      auto csmpi_trace_ptr = this->rank_to_csmpi_trace.at( pid );
+      auto callstack = csmpi_trace_ptr->lookup_callstack( fn, call_idx );
+      this->vertex_id_to_callstack.insert( { vertex_id, callstack } );
+    } 
+  }
 }
 
 void EventGraph::disambiguate_vertex_ids()
@@ -812,6 +814,7 @@ void EventGraph::merge()
   std::unordered_map<size_t,double> vertex_id_to_wall_time = this->vertex_id_to_wall_time;
   std::unordered_map<size_t,int> vertex_id_to_pid = this->vertex_id_to_pid;
   std::unordered_map<size_t,std::string> vertex_id_to_callstack = this->vertex_id_to_callstack;
+
   std::vector<std::pair<size_t,size_t>> message_order_edges = this->message_order_edges;
   std::vector<std::pair<size_t,size_t>> program_order_edges = this->program_order_edges;
 
@@ -852,11 +855,14 @@ void EventGraph::merge()
       for ( auto kvp : pid_map_recv_buffer ) {
         vertex_id_to_pid.insert( kvp );
       }
-      // Receive generating function calls
-      world.recv( i, callstack_map_tag, callstack_map_recv_buffer );
-      for ( auto kvp : callstack_map_recv_buffer ) {
-        vertex_id_to_callstack.insert( kvp );
-      } 
+
+      if ( this->config.has_csmpi() ) {
+        // Receive callstacks
+        world.recv( i, callstack_map_tag, callstack_map_recv_buffer );
+        for ( auto kvp : callstack_map_recv_buffer ) {
+          vertex_id_to_callstack.insert( kvp );
+        } 
+      }
 
       // A common recv buffer for edges
       std::vector<std::pair<size_t,size_t>> edges_recv_buffer;
@@ -882,7 +888,9 @@ void EventGraph::merge()
     world.send( 0, event_type_map_tag, this->vertex_id_to_event_type );
     world.send( 0, wall_time_map_tag, this->vertex_id_to_wall_time );
     world.send( 0, pid_map_tag, this->vertex_id_to_pid );
-    world.send( 0, callstack_map_tag, this->vertex_id_to_callstack );
+    if ( this->config.has_csmpi() ) {
+      world.send( 0, callstack_map_tag, this->vertex_id_to_callstack );
+    }
     // Send edges
     world.send( 0, message_order_edge_tag, this->message_order_edges );
     world.send( 0, program_order_edge_tag, this->program_order_edges );
@@ -926,7 +934,10 @@ void EventGraph::merge()
       int pid = vertex_id_to_pid[vid];
 
       // Lookup callstack label if available from CSMPI trace
-      auto callstack = vertex_id_to_callstack[vid];
+      std::string callstack;
+      if ( this->config.has_csmpi() ) {
+        callstack = vertex_id_to_callstack[vid];
+      }
 
       // Set event type vertex attribute
       igraph_rc = igraph_cattribute_VAS_set( &graph, event_type_attr_name, vid, event_type_str.c_str() );
@@ -936,8 +947,10 @@ void EventGraph::merge()
       igraph_rc = igraph_cattribute_VAN_set( &graph, wtime_attr_name, vid, wtime );
       // Set process ID vertex attribute
       igraph_rc = igraph_cattribute_VAN_set( &graph, pid_attr_name, vid, pid );
-      // Set callstack vertex attribute
-      igraph_rc = igraph_cattribute_VAS_set( &graph, callstack_attr_name, vid, callstack.c_str() );
+      if ( this->config.has_csmpi() ) {
+        // Set callstack vertex attribute
+        igraph_rc = igraph_cattribute_VAS_set( &graph, callstack_attr_name, vid, callstack.c_str() );
+      }
     }
 #ifdef REPORT_PROGRESS
     std::cout << "Vertex attributes added" << std::endl;

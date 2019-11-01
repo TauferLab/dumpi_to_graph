@@ -168,11 +168,16 @@ Configuration& Configuration::operator=(const Configuration& rhs)
   this->condense_unmatched_tests = rhs.get_condense_unmatched_tests_flag();
   this->condense_matched_tests = rhs.get_condense_matched_tests_flag();
   this->trace_dirs = rhs.get_trace_dirs();
-  //this->trace_files = rhs.get_trace_files();
   this->dir_to_trace_file_assignments = rhs.get_dir_to_trace_file_assignments();
   this->dir_to_trace_rank_assignments = rhs.get_dir_to_trace_rank_assignments();
   this->trace_rank_to_owning_rank = rhs.get_trace_rank_to_owning_rank();
+  this->csmpi_flag = rhs.has_csmpi();
   return *this; 
+}
+
+bool Configuration::has_csmpi() const 
+{ 
+  return csmpi_flag;
 }
 
 void Configuration::set_trace_dirs(std::vector<std::string> trace_dirs) 

@@ -48,7 +48,7 @@ int main(int argc, char** argv)
     std::cout << config << std::endl;
   }
 #endif
-  // Set up callbacks for parsing MPI event stream from trace files
+  // Set up callbacks for parsing MPI event stream from DUMPI trace files
   libundumpi_callbacks callbacks; 
   libundumpi_clear_callbacks(&callbacks);
   set_callbacks(&callbacks, config); 
@@ -119,23 +119,26 @@ int main(int argc, char** argv)
                 << std::endl;
 
 #endif
-
+      
+      // Ingest CSMPI traces if requested 
+      if ( config.has_csmpi() ) {
 #ifdef REPORT_TIMINGS
-      double ingest_csmpi_trace_file_start_time = MPI_Wtime();
+        double ingest_csmpi_trace_file_start_time = MPI_Wtime();
 #endif
-      // Ingest CSMPI trace data for this rank
-      auto csmpi_trace_file = get_csmpi_trace_file( trace_dir, trace_file_rank );
-      CSMPI_Trace* csmpi_trace_ptr = new CSMPI_Trace( csmpi_trace_file,
-                                                      trace_file_rank );
-      rank_to_csmpi_trace.insert( { trace_file_rank, csmpi_trace_ptr } );
+        // Ingest CSMPI trace data for this rank
+        auto csmpi_trace_file = get_csmpi_trace_file( trace_dir, trace_file_rank );
+        CSMPI_Trace* csmpi_trace_ptr = new CSMPI_Trace( csmpi_trace_file,
+                                                        trace_file_rank );
+        rank_to_csmpi_trace.insert( { trace_file_rank, csmpi_trace_ptr } );
 #ifdef REPORT_TIMINGS
-      double ingest_csmpi_trace_file_elapsed_time = MPI_Wtime() - ingest_csmpi_trace_file_start_time;
-      std::cout << "\tRank: " << dumpi_to_graph_rank << ", "
-                << "Ingested CSMPI Trace File: " << trace_file << ", "
-                << "In: " << ingest_csmpi_trace_file_elapsed_time << " seconds" 
-                << std::endl;
+        double ingest_csmpi_trace_file_elapsed_time = MPI_Wtime() - ingest_csmpi_trace_file_start_time;
+        std::cout << "\tRank: " << dumpi_to_graph_rank << ", "
+                  << "Ingested CSMPI Trace File: " << trace_file << ", "
+                  << "In: " << ingest_csmpi_trace_file_elapsed_time << " seconds" 
+                  << std::endl;
 
 #endif
+      }
     } // end loop over trace files for this trace dir
 
     mpi_rc = MPI_Barrier(MPI_COMM_WORLD);
