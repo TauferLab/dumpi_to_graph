@@ -12,10 +12,14 @@
 #include "boost/functional/hash.hpp"
 #include "boost/serialization/access.hpp"
 
+// Igraph
+#include "igraph/igraph.h"
+
 // Internal
 #include "Channel.hpp"
 #include "Trace.hpp"
 #include "CommunicatorManager.hpp" 
+#include "CSMPI_Trace.hpp"
 
 struct pair_hash
 {
@@ -39,14 +43,17 @@ class EventGraph
 {
 public:
   EventGraph( const Configuration& config,
-              const std::unordered_map<int,Trace*> rank_to_trace );
+              const std::unordered_map<int,Trace*> rank_to_trace,
+              const std::unordered_map<int,CSMPI_Trace*> rank_to_csmpi_trace);
   
   // Function for applying scalar logical timestamps
   void apply_scalar_logical_clock();
 
-  // Function to merge the partial edge lists into a single igraph object then
-  // write it out to disk
-  void merge_and_write();
+  // Function to merge the partial edge lists into a single igraph object
+  void merge();
+
+  // Function to write the igraph object to file
+  void write() const;
 
   // Convenience functions for printing state
   void report_program_order_edges() const;
@@ -54,6 +61,11 @@ public:
 
 
 private:
+  // This is what the event graph representation will eventially end up in.
+  // Note, only one dumpi_to_graph rank, by default 0, will have its _graph
+  // populated
+  igraph_t _graph;
+
   // Makes sure each dumpi_to_graph process has the same view of any 
   // user-defined communicators 
   CommunicatorManager exchange_user_defined_comm_data(); 
@@ -90,6 +102,7 @@ private:
   // Data directly copied from configuration and traces
   Configuration config;
   std::unordered_map<int,Trace*> rank_to_trace;
+  std::unordered_map<int,CSMPI_Trace*> rank_to_csmpi_trace;
 
   // Built up from each trace rank's individual view of the communicator data
   CommunicatorManager comm_manager;
@@ -103,11 +116,9 @@ private:
   std::unordered_map<size_t,double> vertex_id_to_wall_time;
   std::unordered_map<size_t,int> vertex_id_to_pid; 
 
-  //// Communicator properties
-  //std::unordered_map<int,size_t> comm_to_size;
-  //std::unordered_map<int,int> comm_to_parent;
-  //std::unordered_map<int, std::unordered_map<int,std::pair<int,int>>> comm_to_rankcolorkey;
-  //std::unordered_map<std::pair<int,int>, int, pair_hash> comm_rank_pair_to_global_rank;
+  std::unordered_map<size_t,std::pair<std::string,size_t>> vertex_id_to_fn_call;
+  std::unordered_map<size_t,std::string> vertex_id_to_callstack;
+
 };
 
 

@@ -34,7 +34,8 @@
     [
         "type", 
         "lamport_time",
-        "wall_time"
+        "wall_time",
+        "callstack"
     ],
 
     "edge_labels":

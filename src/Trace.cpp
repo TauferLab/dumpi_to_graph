@@ -29,6 +29,7 @@ Trace::Trace( Configuration config,
   this->trace_dir = trace_dir;
   this->trace_rank = trace_rank;
   this->dumpi_to_graph_rank = dumpi_to_graph_rank;
+  
   // Get # trace ranks 
   int mpi_rc;
   int reduce_recv_buffer;
@@ -52,36 +53,30 @@ Trace::Trace( Configuration config,
                       root,
                       MPI_COMM_WORLD );
   n_trace_ranks = bcast_buffer + 1;
-  //std::cout << "Rank: " << dumpi_to_graph_rank
-  //          << " end of Trace constructor" 
-  //          << " # trace ranks = " << n_trace_ranks
-  //          << std::endl;
   
   // Set size of global communicator
   this->comm_manager = CommunicatorManager( n_trace_ranks );
 }
 
+// Keep track of which MPI function call (of all the various types encountered 
+// in the trace) that we are currently on.
+void Trace::update_call_idx( std::string mpi_fn )
+{
+  auto search = _mpi_fn_to_idx.find( mpi_fn );
+  if ( search == _mpi_fn_to_idx.end() ) {
+    _mpi_fn_to_idx.insert( { mpi_fn, 0 } );
+  } else {
+    _mpi_fn_to_idx[ mpi_fn ]++;
+  }
+}
 
-//std::unordered_map<int,int> Trace::get_comm_to_parent() const
-//{
-//  return this->comm_to_parent;
-//}
-//
-//std::unordered_map<int,size_t> Trace::get_comm_to_size() const
-//{
-//  return this->comm_to_size;
-//}
-//
-//std::unordered_map<int,std::unordered_map<int,std::pair<int,int>>> Trace::get_comm_to_rankcolorkey() const
-//{
-//  return this->comm_to_rankcolorkey;
-//}
-//
-//// 
-//std::unordered_map<int, std::pair< std::unordered_map<int,int>,std::unordered_map<int,int>>> Trace::get_rank_translator() const
-//{
-//  return this->rank_translator;
-//}
+void Trace::associate_event_with_call( std::string mpi_fn, size_t event_vertex_id )
+{
+  // Get current call index for this MPI function
+  auto call_idx = _mpi_fn_to_idx.at( mpi_fn );
+  auto pair = std::make_pair( mpi_fn, call_idx );
+  _mpi_fn_seq.push_back( pair );
+}
 
 CommunicatorManager& Trace::get_comm_manager()
 {
@@ -101,47 +96,6 @@ void Trace::register_comm_split( int parent_comm_id,
   this->comm_manager.associate_rank_with_color( new_comm_id, global_rank, color );
   this->comm_manager.associate_rank_with_key( new_comm_id, global_rank, key );
 }
-
-//void Trace::register_user_defined_communicator( int parent_comm_id,
-//                                                int new_comm_id, 
-//                                                int color, 
-//                                                int key )
-//{
-//  this->comm_to_parent.insert( { new_comm_id, parent_comm_id } );
-//  auto comm_search = this->comm_to_rankcolorkey.find( new_comm_id );
-//  if ( comm_search == this->comm_to_rankcolorkey.end() ) {
-//    std::unordered_map<int, std::pair<int,int>> rank_to_colorkey;
-//    rank_to_colorkey.insert( { this->get_trace_rank(), std::make_pair(color, key) } );
-//    comm_to_rankcolorkey.insert( { new_comm_id, rank_to_colorkey } );
-//  } 
-//  else {
-//    throw std::runtime_error("Trying to overwrite user-defined comm. mapping");
-//  }
-//}
-
-
-//void Trace::register_communicator_rank( int comm_id, int rank )
-//{
-//  if ( comm_id != DUMPI_COMM_WORLD ) {
-//    auto global_rank = this->trace_rank;
-//    auto search = rank_translator.find( comm_id ); 
-//    // Case 1: This is first time we are seeing this communicator
-//    if ( search == rank_translator.end() ) {
-//      std::unordered_map<int,int> comm_rank_to_global_rank;
-//      std::unordered_map<int,int> global_rank_to_comm_rank;
-//      comm_rank_to_global_rank.insert( { rank, global_rank } );
-//      global_rank_to_comm_rank.insert( { global_rank, rank } );
-//      rank_translator.insert( { comm_id, std::make_pair( comm_rank_to_global_rank, global_rank_to_comm_rank ) } );
-//    }
-//    // Case 2: Seen communicator before
-//    else {
-//      auto comm_rank_to_global_rank = search->second.first;
-//      auto global_rank_to_comm_rank = search->second.second;
-//      comm_rank_to_global_rank.insert( { rank, global_rank } );
-//      global_rank_to_comm_rank.insert( { global_rank, rank } );
-//    }
-//  }
-//}
 
 void Trace::register_barrier( size_t event_vertex_id ) 
 {
@@ -248,10 +202,11 @@ void Trace::register_send( const Channel& channel, size_t send_vertex_id )
 }
 
 // Helper for registering init event
-void Trace::register_init() 
+void Trace::register_init(std::string init_fn) 
 {
   size_t event_vertex_id = this->get_next_vertex_id();
   this->event_seq.push_back(2);
+  this->associate_event_with_call( init_fn, event_vertex_id );
 }
 
 // Helper for registering finalize event
@@ -260,6 +215,7 @@ void Trace::register_finalize()
   size_t event_vertex_id = this->get_next_vertex_id();
   this->event_seq.push_back(3);
   this->final_vertex_id = event_vertex_id;
+  this->associate_event_with_call( "MPI_Finalize", event_vertex_id );
 }
 
 
@@ -400,7 +356,8 @@ void Trace::free_request( int request_id )
 void Trace::complete_request( int request_id,
                               const dumpi_status* status_ptr,
                               const dumpi_time cpu_time,
-                              const dumpi_time wall_time ) 
+                              const dumpi_time wall_time,
+                              std::string matching_fn_call )
 {
   // Generally speaking, a class of MPI functions called "matching functions"
   // are called to try to complete requests. Requests may be generated by 
@@ -437,7 +394,11 @@ void Trace::complete_request( int request_id,
   }
   // Case 2: request_type == 1 --> MPI_Irecv
   else if ( request_type == 1 ) {
-    complete_irecv_request( request, status_ptr, cpu_time, wall_time );
+    complete_irecv_request( request, 
+                            status_ptr, 
+                            cpu_time, 
+                            wall_time,
+                            matching_fn_call );
   }
   // Case 3+: FIXME: We don't handle persistent communication requests or 
   // one-sided communication just yet
@@ -472,7 +433,8 @@ void Trace::complete_isend_request( Request request )
 void Trace::complete_irecv_request( Request request,
                                     const dumpi_status* status_ptr,
                                     const dumpi_time cpu_time,
-                                    const dumpi_time wall_time )
+                                    const dumpi_time wall_time,
+                                    std::string matching_fn_call )
 {
   // FIXME: We basically assume that cancelled irecv requests are always 
   // effectively cancelled and thus should not be represented by a recv vertex
@@ -484,14 +446,23 @@ void Trace::complete_irecv_request( Request request,
                                                         status_ptr );
     // Create a recv event
     size_t event_vertex_id = this->get_next_vertex_id();
+
+    // Associate this receive event with its channel
     this->register_recv( channel, event_vertex_id );
+
+    // Associate this receive event with a timestamp
     this->register_dumpi_timestamp( wall_time );
+
+    // Associate this receive event with the MPI matching function call that
+    // generated it
+    this->associate_event_with_call( matching_fn_call, event_vertex_id );
   }
 }
 
 void Trace::apply_vertex_id_offset( size_t offset ) 
 {
   this->vertex_id_offset = offset;
+  this->offset_set = true;
   this->initial_vertex_id += offset;
   this->final_vertex_id += offset;
   // Update the mapping from vertex IDs to channelsS
@@ -584,10 +555,19 @@ std::vector<uint8_t> Trace::get_event_seq() const
 {
   return this->event_seq;
 }
-  
+
+// Returns the sequence of wall-time time stamps associated with events
 std::vector<double> Trace::get_wall_time_seq() const
 {
   return this->wall_time_seq;
+}
+
+// Returns the sequence of (MPI_Function, function_call_index) that generated
+// each event. This is used to associate other non-DUMPI trace data (e.g., 
+// callstacks) to events in the event sequence
+std::vector<std::pair<std::string,size_t>> Trace::get_mpi_fn_seq() const 
+{
+  return this->_mpi_fn_seq;
 }
 
 // Returns the mapping from vertex IDs to channels
@@ -631,10 +611,27 @@ void Trace::report_event_seq()
   int n_events = this->event_seq.size();
   std::cout << "Number of events: " << n_events << std::endl;
   std::cout << "Current Vertex ID value: " << this->get_curr_vertex_id() << std::endl;
-  for ( int i=0; i<n_events; ++i ) {
-    std::cout << "Vertex ID: " << i + this->vertex_id_offset
-              << ", Type: " << type_to_name.at( this->event_seq[i] ) 
-              << std::endl;
+
+  //std::cout << "event_seq length: " << this->event_seq.size() << std::endl;
+  //std::cout << "fn_call_seq length: " << this->_mpi_fn_seq.size() << std::endl;
+
+  if ( this->offset_set ) {
+    for ( int i=0; i<n_events; ++i ) {
+      std::cout << "Vertex ID: " << i + this->vertex_id_offset
+                << ", Type: " << type_to_name.at( this->event_seq[i] ) 
+                << ", Generating Function: " << this->_mpi_fn_seq[i].first
+                << ", Function Call Index: " << this->_mpi_fn_seq[i].second
+                << std::endl;
+    }
+  }
+  else {
+    for ( int i=0; i<n_events; ++i ) {
+      std::cout << "Vertex ID: " << i 
+                << ", Type: " << type_to_name.at( this->event_seq[i] ) 
+                << ", Generating Function: " << this->_mpi_fn_seq[i].first
+                << ", Function Call Index: " << this->_mpi_fn_seq[i].second
+                << std::endl;
+    }
   }
 }
 
@@ -673,29 +670,4 @@ void Trace::report_id_to_request()
               << " Request Object: " << kvp.second << std::endl;
   }
 }
-
-//void Trace::report_comm_to_size() const
-//{
-//  std::cout << "Communicator ID to communicator size for trace rank:" 
-//            << this->get_trace_rank() << std::endl;
-//  for ( auto kvp : this->comm_to_size ) {
-//    std::cout << "Communicator ID: " << kvp.first
-//              << " Size: " << kvp.second
-//              << std::endl;
-//  }
-//}
-//
-//void Trace::report_comm_to_rankcolorkey() const
-//{
-//  for ( auto kvp : this->comm_to_rankcolorkey ) {
-//    std::cout << "Communicator ID: " << kvp.first << std::endl;
-//    for ( auto kvp2 : kvp.second ) {
-//      std::cout << "Rank: " << kvp2.first 
-//                << " Color: " << kvp2.second.first
-//                << " Key: " << kvp2.second.second
-//                << std::endl;
-//    }
-//  }
-//}
-
 

@@ -6,6 +6,7 @@
 // Internal 
 #include "Trace.hpp"
 #include "Utilities.hpp"
+#include "Logging.hpp"
 
 int cb_MPI_Finalize(const dumpi_finalize *prm, 
                     uint16_t thread, 
@@ -21,6 +22,8 @@ int cb_MPI_Finalize(const dumpi_finalize *prm,
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
   
+  trace->update_call_idx( "MPI_Finalize" );
+
   // Add the event to the event sequence for this trace  
   trace->register_finalize();
   trace->register_dumpi_timestamp( wall_time );

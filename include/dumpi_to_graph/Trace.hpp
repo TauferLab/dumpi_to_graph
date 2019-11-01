@@ -1,5 +1,5 @@
-#ifndef TRACE_H
-#define TRACE_H
+#ifndef D2G_TRACE_H
+#define D2G_TRACE_H
 
 #include <string>
 #include <vector>
@@ -27,6 +27,10 @@ public:
          int trace_rank,
          int dumpi_to_graph_rank );
 
+  void update_call_idx( std::string mpi_fn );
+  void associate_event_with_call( std::string mpi_fn, size_t event_vertex_id );
+  std::vector<std::pair<std::string,size_t>> get_mpi_fn_seq() const;
+
   std::string get_trace_dir() const;
   size_t get_next_vertex_id();
   size_t get_curr_vertex_id() const;
@@ -39,10 +43,6 @@ public:
   std::vector<double> get_wall_time_seq() const;
   std::unordered_map<size_t,Channel> get_vertex_id_to_channel() const;
 
-  //std::unordered_map<int, std::pair< std::unordered_map<int,int>,std::unordered_map<int,int>>> get_rank_translator() const;
-  //std::unordered_map<int,size_t> get_comm_to_size() const;
-  //std::unordered_map<int,int> get_comm_to_parent() const;
-  //std::unordered_map<int,std::unordered_map<int,std::pair<int,int>>> get_comm_to_rankcolorkey() const;
   CommunicatorManager& get_comm_manager();
 
   void update_event_seq( size_t vertex_id );
@@ -50,10 +50,9 @@ public:
   void register_barrier( size_t event_vertex_id );
   void register_recv( const Channel& channel, size_t recv_vertex_id );
   void register_send( const Channel& channel, size_t send_vertex_id );
-  void register_init();
+  void register_init(std::string init_fn);
   void register_finalize();
   
-  //void register_communicator_rank( int comm_id, int rank );
   void register_comm_split( int parent_comm_id,
                             int new_comm_id, 
                             int color, 
@@ -75,13 +74,15 @@ public:
   void complete_request( int request_id, 
                          const dumpi_status* status_ptr,
                          const dumpi_time cpu_time,
-                         const dumpi_time wall_time );
+                         const dumpi_time wall_time,
+                         std::string matching_fn_call );
 
   void complete_isend_request( Request request );
   void complete_irecv_request( Request request,
                                const dumpi_status* status_ptr,
                                const dumpi_time cpu_time,
-                               const dumpi_time wall_time );
+                               const dumpi_time wall_time,
+                               std::string matching_fn_call );
 
   void apply_vertex_id_offset( size_t offset );
 
@@ -94,8 +95,6 @@ public:
   void report_id_to_request();
   void report_channel_to_send_seq();
   void report_channel_to_recv_seq();
-  //void report_comm_to_size() const;
-  //void report_comm_to_rankcolorkey() const;
 
 private:
 
@@ -130,6 +129,7 @@ private:
   size_t final_vertex_id;
 
   size_t vertex_id_offset;
+  bool offset_set = false;
 
   // For right now, we just indicate the type of each vertex with a numerical ID
   // 0 := send ( MPI_Send, MPI_Isend, and their specializations )
@@ -139,6 +139,10 @@ private:
   // 4 := barrier ( MPI_Barrier )
   std::vector<uint8_t> event_seq;
 
+  // For keeping track of which MPI function generated which event(s)
+  std::unordered_map<std::string,size_t> _mpi_fn_to_idx;
+  std::vector<std::pair<std::string,size_t>> _mpi_fn_seq;
+  
   // Tracking wall-time timestamps
   double initial_timestamp; 
   std::vector<double> wall_time_seq;
@@ -151,17 +155,10 @@ private:
   std::unordered_map<Channel, std::vector<size_t>, ChannelHash> channel_to_recv_seq;
 
   CommunicatorManager comm_manager; 
-  //// Mapping between communicator IDs and their sizes (i.e., # processes)
-  //std::unordered_map<int,size_t> comm_to_size;
-  //std::unordered_map<int,int> comm_to_parent;
-  //std::unordered_map<int, std::unordered_map<int,std::pair<int,int>>> comm_to_rankcolorkey;
-  //// Mapping between communicator IDs and rank-translation mappings
-  //std::unordered_map<int, std::pair< std::unordered_map<int,int>,std::unordered_map<int,int>>> rank_translator;
-
 
   // A function for completing requests during matching function registration
-  void complete_request( int request_id );
+  //void complete_request( int request_id );
 
 };
 
-#endif // TRACE_H
+#endif // D2G_TRACE_H

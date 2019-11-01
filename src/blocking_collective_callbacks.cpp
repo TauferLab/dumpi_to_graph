@@ -27,6 +27,10 @@ int cb_MPI_Barrier(const dumpi_barrier *prm,
   // Add the vertex to the event sequence
   trace->register_barrier( event_vertex_id );
   trace->register_dumpi_timestamp( wall_time );
+  
+  // Associate this barrier event with the MPI function call that generated it
+  trace->update_call_idx( "MPI_Barrier" );
+  trace->associate_event_with_call( "MPI_Barrier", event_vertex_id );
 
   // Return OK
   return 0;
@@ -52,7 +56,11 @@ int cb_MPI_Reduce(const dumpi_reduce *prm,
   // Add the vertex to the event sequence
   trace->register_barrier( event_vertex_id );
   trace->register_dumpi_timestamp( wall_time );
-
+  
+  // Associate this barrier event with the MPI function call that generated it
+  trace->update_call_idx( "MPI_Reduce" );
+  trace->associate_event_with_call( "MPI_Reduce", event_vertex_id );
+  
   // Return OK
   return 0;
 }
@@ -77,6 +85,10 @@ int cb_MPI_Allreduce(const dumpi_allreduce *prm,
   // Add the vertex to the event sequence
   trace->register_barrier( event_vertex_id );
   trace->register_dumpi_timestamp( wall_time );
+  
+  // Associate this barrier event with the MPI function call that generated it
+  trace->update_call_idx( "MPI_Allreduce" );
+  trace->associate_event_with_call( "MPI_Allreduce", event_vertex_id );
 
   // Return OK
   return 0;
@@ -102,6 +114,10 @@ int cb_MPI_Alltoall(const dumpi_alltoall *prm,
   // Add the vertex to the event sequence
   trace->register_barrier( event_vertex_id );
   trace->register_dumpi_timestamp( wall_time );
+  
+  // Associate this barrier event with the MPI function call that generated it
+  trace->update_call_idx( "MPI_Alltoall" );
+  trace->associate_event_with_call( "MPI_Alltoall", event_vertex_id );
 
   // Return OK
   return 0;
@@ -127,6 +143,10 @@ int cb_MPI_Alltoallv(const dumpi_alltoallv *prm,
   // Add the vertex to the event sequence
   trace->register_barrier( event_vertex_id );
   trace->register_dumpi_timestamp( wall_time );
+
+  // Associate this barrier event with the MPI function call that generated it
+  trace->update_call_idx( "MPI_Alltoallv" );
+  trace->associate_event_with_call( "MPI_Alltoallv", event_vertex_id );
 
   // Return OK
   return 0;

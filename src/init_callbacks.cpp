@@ -21,9 +21,12 @@ int cb_MPI_Init(const dumpi_init *prm,
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
   
+  trace->update_call_idx( "MPI_Init" );
+  
   // Add the event to the event sequence for this trace  
-  trace->register_init();
+  trace->register_init("MPI_Init");
   trace->register_initial_dumpi_timestamp( wall_time );
+
   
   // Return OK
   return 0;
@@ -43,8 +46,10 @@ int cb_MPI_Init_thread(const dumpi_init_thread *prm,
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
   
+  trace->update_call_idx( "MPI_Init_thread" );
+  
   // Add the event to the event sequence for this trace  
-  trace->register_init();
+  trace->register_init("MPI_Init_thread");
   trace->register_initial_dumpi_timestamp( wall_time );
   
   // Return OK

@@ -79,7 +79,13 @@ int cb_MPI_Isend(const dumpi_isend *prm,
   
   // Associate this send event with its channel
   trace->register_send( channel, event_vertex_id );
+
+  // Associate this send event with a timestamp
   trace->register_dumpi_timestamp( wall_time );
+  
+  // Associate this send event with the MPI function call that generated it
+  trace->update_call_idx( "MPI_Isend" );
+  trace->associate_event_with_call( "MPI_Isend", event_vertex_id );
 
   // Since this is a non-blocking send, create and track its associated request
   int request_id = event.request;
