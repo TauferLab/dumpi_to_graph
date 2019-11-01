@@ -42,7 +42,7 @@
     [
         "tag", 
         "lamport_time_diff",
-        "wall_time_diff",
+        "wall_time_diff"
     ],
 
     "condense_matched_tests": false,
