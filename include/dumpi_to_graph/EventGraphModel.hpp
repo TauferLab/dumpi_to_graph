@@ -9,7 +9,6 @@ const std::set<std::string> allowed_edge_labels =
   "tag",                                                                        
   "lamport_time_diff",                                                          
   "wall_time_diff",                                                             
-  "cpu_time_diff"                                                               
 };                                                                              
                                                                                 
 const std::set<std::string> allowed_vertex_labels =                             
@@ -17,8 +16,7 @@ const std::set<std::string> allowed_vertex_labels =
   "type",                                                                       
   "lamport_time",                                                               
   "wall_time",                                                                  
-  "cpu_time",                                                                   
-  "call_stack"                                                                  
+  "callstack"                                                                  
 };                                                                              
                                                                                 
 const std::set<std::string> allowed_happens_before_orders =                     
