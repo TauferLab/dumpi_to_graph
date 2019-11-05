@@ -10,6 +10,7 @@
 
 // Internal
 #include "CSMPI_Callstack.hpp"
+#include "Utilities.hpp"
 
 class CSMPI_Trace
 {
@@ -19,8 +20,7 @@ public:
 private:
   std::string trace_file;
   int trace_rank;
-  std::unordered_map<std::string,
-                     std::unordered_map<int,CSMPI_Callstack>> fn_to_idx_to_callstack;
+  std::unordered_map<std::pair<std::string,int>,CSMPI_Callstack,pair_hash> fn_idx_pair_to_callstack;
 };
 
 #endif 

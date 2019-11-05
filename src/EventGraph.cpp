@@ -14,6 +14,7 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
+#include <chrono>
 
 // Boost
 #include "boost/serialization/unordered_map.hpp" 
@@ -87,9 +88,18 @@ EventGraph::EventGraph( const Configuration& config,
   
   disambiguate_vertex_ids(); 
   comm_world.barrier();
+#ifdef REPORT_PROGRESS
+  std::cout << "Rank: " << global_rank 
+            << " vertex IDs disambiguated" << std::endl;
+#endif
+
 
   merge_trace_data();
   comm_world.barrier();
+#ifdef REPORT_PROGRESS
+  std::cout << "Rank: " << global_rank 
+            << " trace data merged" << std::endl;
+#endif
 
 
 #ifdef REPORT_VERBOSE_PROGRESS
@@ -101,6 +111,10 @@ EventGraph::EventGraph( const Configuration& config,
 
   disambiguate_channel_maps();
   comm_world.barrier();
+#ifdef REPORT_PROGRESS
+  std::cout << "Rank: " << global_rank 
+            << " channel maps disambiguated" << std::endl;
+#endif
 
 #ifdef REPORT_VERBOSE_PROGRESS
   for ( auto kvp : channel_to_send_seq ) {
@@ -384,6 +398,14 @@ void EventGraph::merge_trace_data()
 
   // Merge data from CSMPI traces if available
   if ( this->config.has_csmpi() ) {
+#ifdef REPORT_PROGRESS
+    int mpi_rc, global_rank;
+    mpi_rc = MPI_Comm_rank( MPI_COMM_WORLD, &global_rank );
+    std::cout << "Rank: " << global_rank 
+              << " merging CSMPI data, " 
+              << "# vertex IDs to assign callstacks to: " << vertex_id_to_fn_call.size() << std::endl;
+#endif
+
     for ( auto kvp : vertex_id_to_fn_call ) {
       auto vertex_id = kvp.first;
       auto fn = kvp.second.first;

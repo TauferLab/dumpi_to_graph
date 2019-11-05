@@ -44,10 +44,6 @@ CSMPI_Trace::CSMPI_Trace( std::string csmpi_trace_file,
   while (std::regex_match( current_line, mpi_function_match, mpi_function_regex ) ) {
     std::ssub_match func_submatch = mpi_function_match[1];
     std::string function_name = func_submatch.str();
-    // Make entry in map from function to sequence of callstacks
-    std::unordered_map<int,CSMPI_Callstack> idx_to_callstack;
-    this->fn_to_idx_to_callstack.insert( { function_name, idx_to_callstack } );
-
     // Now consume callstacks until we hit another MPI function name 
     while( std::getline(input, current_line ) &&
            !std::regex_match( current_line, mpi_function_match, mpi_function_regex)) {
@@ -74,9 +70,8 @@ CSMPI_Trace::CSMPI_Trace( std::string csmpi_trace_file,
         CSMPI_Callstack callstack( call_idx, addresses );
   
         // Associate with function
-        //auto pair = std::make_pair( call_idx, callstack );
-        //this->fn_to_callstack_seq.at( function_name ).push_back( pair );
-        this->fn_to_idx_to_callstack.at( function_name ).insert( { call_idx, callstack } );
+        auto pair = std::make_pair( function_name, call_idx );
+        this->fn_idx_pair_to_callstack.insert( { pair, callstack } );
       }
     }
   }
@@ -87,15 +82,11 @@ std::string CSMPI_Trace::lookup_callstack( std::string fn, int call_idx ) const
   // A default value to return in the even that the specified (fn, call_idx)
   // does not have a callstack associated with it in the CSMPI trace
   std::string callstack_str = "";
-  auto key = std::make_pair( fn, call_idx );
-  auto fn_search = this->fn_to_idx_to_callstack.find( fn );
-  if ( fn_search != this->fn_to_idx_to_callstack.end() ) {
-    auto idx_to_callstack = this->fn_to_idx_to_callstack.at( fn );
-    auto idx_search = idx_to_callstack.find( call_idx );
-    if ( idx_search != idx_to_callstack.end() ) {
-      auto callstack = idx_to_callstack.at( call_idx );
-      callstack_str = callstack.str();
-    }
+  auto key = make_pair( fn, call_idx );
+  auto search = this->fn_idx_pair_to_callstack.find( key );
+  if ( search != this->fn_idx_pair_to_callstack.end() ) {
+    auto callstack = search->second;
+    callstack_str = callstack.str();
   }
   return callstack_str;
 }
