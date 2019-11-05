@@ -56,5 +56,19 @@ template <typename RankType, typename ElemType>
   }
 };
 
+struct pair_hash
+{
+  template<typename T1, typename T2>
+  std::size_t operator() (const std::pair<T1,T2> &pair) const 
+  {
+    std::size_t hash = 0;
+    auto h1 = boost::hash_value(pair.first);
+    auto h2 = boost::hash_value(pair.second);
+    boost::hash_combine( hash, h1 );
+    boost::hash_combine( hash, h2 );
+    return hash;
+  }
+};
+
 
 #endif // D2G_UTILITIES

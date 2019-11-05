@@ -20,20 +20,8 @@
 #include "Trace.hpp"
 #include "CommunicatorManager.hpp" 
 #include "CSMPI_Trace.hpp"
+#include "Utilities.hpp"
 
-struct pair_hash
-{
-  template<class T1, class T2>
-  std::size_t operator() (const std::pair<T1,T2> &pair) const 
-  {
-    std::size_t hash = 0;
-    auto h1 = std::hash<T1>{}(pair.first);
-    auto h2 = std::hash<T1>{}(pair.second);
-    boost::hash_combine( hash, h1 );
-    boost::hash_combine( hash, h2 );
-    return hash;
-  }
-};
 
 
 // Each dumpi_to_graph process will maintain one EventGraph object that contains
