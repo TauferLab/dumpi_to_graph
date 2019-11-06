@@ -550,9 +550,7 @@ void EventGraph::exchange_local_message_matching_data()
 // different dumpi_to_graph processes. 
 void EventGraph::exchange_remote_message_matching_data()
 {
-  // Complete vertex ID exchange for messages in the global communicator
-  exchange_message_matching_data_for_communicator( DUMPI_COMM_WORLD );
-  // Complete vertex ID exchange for messages in user-defined communicators
+  // Complete vertex ID exchange for each communicator
   for ( auto kvp : this->comm_manager.get_comm_to_size() ) {
     auto comm_id = kvp.first;
     exchange_message_matching_data_for_communicator( comm_id );
@@ -894,6 +892,7 @@ void EventGraph::merge()
       for ( auto edge : edges_recv_buffer ) {
         message_order_edges.push_back( edge );
       }
+
       // Receive program order edges
       world.recv( i, program_order_edge_tag, edges_recv_buffer );
       for ( auto edge : edges_recv_buffer ) {
