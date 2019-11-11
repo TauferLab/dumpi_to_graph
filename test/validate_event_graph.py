@@ -48,8 +48,8 @@ def validate( graph ):
     for v in finalize_vertices:
         preds = v.predecessors()
         succs = v.successors()
-        assert( len(preds) == 0 ) 
-        assert( len(succs) == 1 )
+        assert( len(preds) == 1 ) 
+        assert( len(succs) == 0 )
     # Check properties of barrier vertices
     print("Checking barrier vertex properties...")
     barrier_vertices = graph.vs.select( event_type_eq="barrier" )
