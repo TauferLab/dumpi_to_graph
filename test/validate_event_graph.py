@@ -33,7 +33,7 @@ def read_graph( graph_path ):
 
 
 @timer
-def validate( graph ):
+def validate( graph, check_logical_timestamps, clock_condition ):
     # Check properties of init vertices
     print("Checking init vertex properties...")
     init_vertices = graph.vs.select( event_type_eq="init" )
@@ -104,23 +104,27 @@ def validate( graph ):
               )
         # Check that the send's predecessor is in the same program order as it
         assert( preds[0]["process_id"] == send_pid )
-    # Check logical timestamp properties
-    print("Checking logical timestamp properties...")
-    for v in graph.vs[:]:
-        lts = v["logical_time"]
-        preds = v.predecessors()
-        if len(preds) == 0:
-            assert( lts == 0 )
-        elif len(preds) == 1:
-            pred_lts = preds[0]["logical_time"]
-            assert( lts == pred_lts + 1 )
-        elif len(preds) == 2:
-            pred_lts = [ p["logical_time"] for p in preds ]
-            assert( lts == max(pred_lts) + 1 )
+    # Check logical timestamp properties if desired
+    if check_logical_timestamps:
+        print("Checking logical timestamp properties...")
+        for v in graph.vs[:]:
+            lts = v["logical_time"]
+            preds = v.predecessors()
+            if len(preds) == 0:
+                assert( lts == 0 )
+            elif len(preds) == 1:
+                pred_lts = preds[0]["logical_time"]
+                if clock_condition == "lamport":
+                    assert( lts == pred_lts + 1 )
+                elif clock_condition == "scalar":
+                    assert( lts > pred_lts )
+            elif len(preds) == 2:
+                pred_lts = [ p["logical_time"] for p in preds ]
+                assert( lts == max(pred_lts) + 1 )
 
-def main( graph_path ):
+def main( graph_path, check_logical_timestamps, clock_condition ):
     graph = read_graph( graph_path )    
-    validate( graph ) 
+    validate( graph, check_logical_timestamps, clock_condition ) 
 
 
 
@@ -130,6 +134,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("graph",
                         help="A GraphML file")
+    parser.add_argument("-l", "--check_logical_timestamps", action="store_true", default=False,
+                        help="Check that logical timestamps obey some given logical clock conditions")
+    parser.add_argument("-c", "--clock_condition", type=str, default="scalar",
+                        help="Specify which logical clock conditions to check. Options: \"scalar\", \"lamport\"")
+
     args = parser.parse_args()
 
-    main( args.graph ) 
+    main( args.graph, args.check_logical_timestamps, args.clock_condition ) 
