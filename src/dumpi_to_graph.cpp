@@ -106,7 +106,8 @@ int main(int argc, char** argv)
       }   
       // Read the stream of MPI events
       int undumpi_rc;
-      undumpi_rc = undumpi_read_stream( profile, &callbacks, trace_ptr );
+      bool print_progress = false;
+      undumpi_rc = undumpi_read_stream( profile, &callbacks, trace_ptr, print_progress );
       // Close tracefile
       undumpi_close( profile );
       // Associate the trace file representation to its trace file
