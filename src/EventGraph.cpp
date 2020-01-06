@@ -1017,7 +1017,7 @@ void EventGraph::write() const
     outfile = fopen( output_path.c_str(), "w" );
     igraph_rc = igraph_write_graph_graphml( &(this->_graph), outfile, false );
     fclose( outfile );
-#ifdef REPORT_PROGRESS
+#ifdef REPORT_PROGRESS_MINIMAL
     std::cout << "Wrote event graph to: " << output_path
               << std::endl;
 #endif

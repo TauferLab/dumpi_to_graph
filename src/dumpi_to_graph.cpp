@@ -43,7 +43,7 @@ int main(int argc, char** argv)
   // Ensure that all dumpi_to_graph processes have the Configuration 
   mpi_rc = MPI_Barrier(MPI_COMM_WORLD);
 
-#ifdef REPORT_PROGRESS
+#ifdef REPORT_PROGRESS_MINIMAL
   if ( dumpi_to_graph_rank == REPORTING_RANK ) {
     std::cout << config << std::endl;
   }
@@ -171,19 +171,23 @@ int main(int argc, char** argv)
     //std::cout << "Rank: " << dumpi_to_graph_rank 
     //          << " starting event graph construction" << std::endl;
     EventGraph event_graph( config, rank_to_trace, rank_to_csmpi_trace );
+#ifdef REPORT_PROGRESS
     std::cout << "Rank: " << dumpi_to_graph_rank 
               << " finished event graph construction" << std::endl;
-    
+#endif
   
     mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
 
     // Apply logical timestamps
+#ifdef REPORT_PROGRESS
     std::cout << "Rank: " << dumpi_to_graph_rank 
               << " started applying logical timestamps" << std::endl;
+#endif
     event_graph.apply_scalar_logical_clock();
+#ifdef REPORT_PROGRESS
     std::cout << "Rank: " << dumpi_to_graph_rank 
               << " finished applying logical timestamps" << std::endl;
-
+#endif
     mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
     
     // Merge all partial views of the event graph into a single igraph graph,

@@ -261,34 +261,10 @@ void Configuration::compute_trace_file_assignment()
       }
     }
 
-    // Now that we have the trace file and trace rank assignments for this dir
     this->dir_to_trace_rank_assignments.insert( { trace_dir, trace_rank_assignments } );
     this->dir_to_trace_file_assignments.insert( { trace_dir, trace_file_assignments } );
     
   }
-
-
-  for ( auto kvp : this->dir_to_trace_rank_assignments ) {
-    std::cout << "For trace directory: " << kvp.first << " we have rank assignments: " << std::endl;
-    for ( auto kvp2 : kvp.second ) {
-      std::cout << "Trace ranks assigned to dumpi_to_graph rank: " << kvp2.first << ": ";
-      for ( auto rank : kvp2.second ) {
-        std::cout << rank << " ";
-      }
-      std::cout << std::endl;
-    }
-  }
-  for ( auto kvp : this->dir_to_trace_file_assignments ) {
-    std::cout << "For trace directory: " << kvp.first << " we have file assignments: " << std::endl;
-    for ( auto kvp2 : kvp.second ) {
-      std::cout << "Trace files assigned to dumpi_to_graph rank: " << kvp2.first << ": ";
-      for ( auto file : kvp2.second ) {
-        std::cout << file << " ";
-      }
-      std::cout << std::endl;
-    }
-  }
-
 }
 
 std::unordered_map<int,int> Configuration::get_trace_rank_to_owning_rank() const

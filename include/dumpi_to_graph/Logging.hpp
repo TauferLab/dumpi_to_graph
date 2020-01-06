@@ -10,10 +10,11 @@
 #include <sstream>
 #include <fstream>
 
-#define REPORT_PROGRESS
+#define REPORT_PROGRESS_MINIMAL
+//#define REPORT_PROGRESS
 //#define REPORT_VERBOSE_PROGRESS
 #define REPORTING_RANK 0
 
-#define REPORT_TIMINGS
+//#define REPORT_TIMINGS
 
 #endif // D2G_LOGGING
