@@ -173,8 +173,23 @@ void CommunicatorManager::calculate_comm_sizes()
       unique_colors.insert( color );
     }
     int n_colors = unique_colors.size();
+
+    //auto comm_id_search = comm_to_parent.find( comm_id );
+    //if ( comm_id_search == comm_to_parent.end() ) {
+    //  int my_rank = MPI_Comm_rank( MPI_COMM_WORLD, &my_rank );
+    //  std::cout << "Rank: " << my_rank << " parent comm ID of comm: " << comm_id << " not found" << std::endl;
+    //}
     auto parent_comm_id = comm_to_parent.at( comm_id );
+    
+    auto comm_size_search = comm_to_size.find( parent_comm_id );
+    if ( comm_size_search == comm_to_size.end() ) {
+      int my_rank = MPI_Comm_rank( MPI_COMM_WORLD, &my_rank );
+      std::cout << "Rank: " << my_rank 
+                << " handling comm: " << comm_id
+                << " size of parent comm: " << parent_comm_id << " not found" << std::endl;
+    }
     auto parent_size = comm_to_size.at( parent_comm_id );
+
     int comm_size = parent_size / n_colors;
     comm_to_size.insert( { comm_id, comm_size } );
   } 
@@ -400,7 +415,11 @@ std::unordered_map<int,int> CommunicatorManager::get_comm_to_parent() const
   return this->comm_to_parent;
 }
 
-std::unordered_map<int,std::unordered_map<int,int>> CommunicatorManager::get_comm_to_rank_to_color() const
+//std::unordered_map<int,std::unordered_map<int,int>> CommunicatorManager::get_comm_to_rank_to_color() const
+//{
+//  return this->comm_to_rank_to_color;
+//}
+std::map<int,std::unordered_map<int,int>> CommunicatorManager::get_comm_to_rank_to_color() const
 {
   return this->comm_to_rank_to_color;
 }

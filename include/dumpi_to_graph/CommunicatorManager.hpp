@@ -2,6 +2,7 @@
 #define D2G_COMMUNICATOR_MANAGER_H
 
 #include <unordered_map>
+#include <map>
 
 // DUMPI
 #include "dumpi/common/constants.h"
@@ -10,6 +11,7 @@
 #include "boost/functional/hash.hpp"
 #include "boost/serialization/access.hpp"
 #include "boost/serialization/unordered_map.hpp"
+#include "boost/serialization/map.hpp"
 #include "boost/serialization/vector.hpp"
 
 // Internal 
@@ -54,7 +56,11 @@ public:
   // Accessors for aggregation
   std::unordered_map<int,size_t> get_comm_to_size() const;
   std::unordered_map<int,int> get_comm_to_parent() const;
-  std::unordered_map<int,std::unordered_map<int,int>> get_comm_to_rank_to_color() const;
+  
+  //std::unordered_map<int,std::unordered_map<int,int>> get_comm_to_rank_to_color() const;
+  std::map<int,std::unordered_map<int,int>> get_comm_to_rank_to_color() const;
+  
+  
   std::unordered_map<int,std::unordered_map<int,int>> get_comm_to_rank_to_key() const;
   std::unordered_map<int,std::unordered_map<int,int>> get_comm_to_global_rank_to_comm_rank() const;
   // Also needed for aggregation
@@ -68,7 +74,10 @@ private:
 
   std::unordered_map<int,size_t> comm_to_size;
   std::unordered_map<int,int> comm_to_parent;
-  std::unordered_map<int, std::unordered_map<int,int>> comm_to_rank_to_color;
+
+  //std::unordered_map<int, std::unordered_map<int,int>> comm_to_rank_to_color;
+  std::map<int, std::unordered_map<int,int>> comm_to_rank_to_color;
+
   std::unordered_map<int, std::unordered_map<int,int>> comm_to_rank_to_key;
 
   std::unordered_map<int, std::unordered_map<int,int>> comm_to_global_rank_to_comm_rank;

@@ -85,7 +85,7 @@ EventGraph::EventGraph( const Configuration& config,
   this->rank_to_trace = rank_to_trace;
   this->rank_to_csmpi_trace = rank_to_csmpi_trace;
   this->comm_manager = exchange_user_defined_comm_data();
-  
+
   disambiguate_vertex_ids(); 
   comm_world.barrier();
 #ifdef REPORT_PROGRESS
@@ -102,7 +102,7 @@ EventGraph::EventGraph( const Configuration& config,
 #endif
 
 
-#ifdef REPORT_VERBOSE_PROGRESS
+#ifdef REPORT_PROGRESS_VERBOSE
   // Sanity check user-defined comm data
   if ( global_rank == REPORTING_RANK ) {
     this->comm_manager.print(); 
@@ -116,7 +116,7 @@ EventGraph::EventGraph( const Configuration& config,
             << " channel maps disambiguated" << std::endl;
 #endif
 
-#ifdef REPORT_VERBOSE_PROGRESS
+#ifdef REPORT_PROGRESS_VERBOSE
   for ( auto kvp : channel_to_send_seq ) {
     std::cout << "Rank: " << global_rank
               << " Channel: " << kvp.first
@@ -178,7 +178,11 @@ CommunicatorManager EventGraph::exchange_user_defined_comm_data()
     auto trace_comm_manager = trace_ptr->get_comm_manager();
     comm_manager.aggregate( trace_comm_manager );
   }
-  
+ 
+#ifdef REPORT_PROGRESS_VERBOSE
+  std::cout << "Rank: " << global_rank << " locally-held comm. managers aggregated" << std::endl;
+#endif
+
   // Collect all remotely held comm_managers
   std::vector<CommunicatorManager> remote_comm_managers;
   for ( int rank=0; rank < n_procs; rank++ ) {
@@ -200,15 +204,25 @@ CommunicatorManager EventGraph::exchange_user_defined_comm_data()
     comm_manager.aggregate( cm );
   }
 
+#ifdef REPORT_PROGRESS_VERBOSE
+  std::cout << "Rank: " << global_rank << " remotely-held comm. managers aggregated" << std::endl;
+#endif
+
   // Now each dumpi_to_graph process has a CommunicatorManager with enough data
   // to calculate the size each communicator. Specifically, the size of a 
   // communicator is the size of its parent divided by the number of distinct 
   // colors in the MPI_Comm_split call that constructed it
   comm_manager.calculate_comm_sizes(); 
 
+#ifdef REPORT_PROGRESS_VERBOSE
+  std::cout << "Rank: " << global_rank << " comm sizes calculated" << std::endl;
+#endif
+
   comm_manager.calculate_global_rank_to_comm_rank_mapping();
 
-  //std::cout << "Rank: " << global_rank << " ready to build translators" << std::endl;
+#ifdef REPORT_PROGRESS_VERBOSE
+  std::cout << "Rank: " << global_rank << " global-rank to comm-rank mapping built" << std::endl;
+#endif
 
   comm_world.barrier(); 
 
@@ -690,7 +704,7 @@ void EventGraph::apply_scalar_logical_clock()
     for ( int i=0; i<n_vertices; ++i ) {
       auto event_type = event_seq[i];
       size_t vertex_id = i + vertex_id_offset;
-#ifdef REPORT_VERBOSE_PROGRESS
+#ifdef REPORT_PROGRESS_VERBOSE
       std::cout << "Rank: " << rank 
                 << " handling trace rank: " << kvp.first
                 << " assigning LTS to vertex: " << vertex_id

@@ -56,7 +56,7 @@ int main(int argc, char** argv)
   // Loop over the trace directories, constructing one event graph per
   // trace directory
   for ( auto trace_dir : config.get_trace_dirs() ) {
-#ifdef REPORT_TIMINGS
+#ifdef REPORT_PROGRESS
     double ingest_trace_dir_start_time = MPI_Wtime();
     if ( dumpi_to_graph_rank == REPORTING_RANK ) {
       std::cout << "Beginning to Ingest Trace Dir: " << trace_dir << std::endl;
@@ -76,7 +76,9 @@ int main(int argc, char** argv)
     // Maintain a mapping between ranks of the traced application and their 
     // representation as a Trace object
     std::unordered_map<int, Trace*> rank_to_trace;
-    
+
+    // Maintain a mapping between ranks of the traced application and their 
+    // callstacks 
     std::unordered_map<int, CSMPI_Trace*> rank_to_csmpi_trace;
 
     // For each trace file that this dumpi_to_graph process is responsible for,
