@@ -25,15 +25,15 @@ public:
     const std::set<std::string>& vertex_labels,
     const std::set<std::string>& edge_labels,
     bool represent_unmatched_tests,
-    bool condense_unmatched_tests,
-    bool condense_matched_tests ) : 
+    bool merge_unmatched_tests,
+    bool merge_matched_tests ) : 
       mpi_functions(mpi_functions),
       happens_before_orders(happens_before_orders),
       vertex_labels(vertex_labels),
       edge_labels(edge_labels),
       represent_unmatched_tests(represent_unmatched_tests),
-      condense_unmatched_tests(condense_unmatched_tests),
-      condense_matched_tests(condense_matched_tests)
+      merge_unmatched_tests(merge_unmatched_tests),
+      merge_matched_tests(merge_matched_tests)
       { 
         for ( auto vlabel : vertex_labels ) {
           if ( vlabel == "callstack" ) {
@@ -53,8 +53,8 @@ public:
   std::set<std::string> get_vertex_labels() const;
   std::set<std::string> get_edge_labels() const;
   bool get_represent_unmatched_tests_flag() const;
-  bool get_condense_unmatched_tests_flag() const;
-  bool get_condense_matched_tests_flag() const;
+  bool get_merge_unmatched_tests_flag() const;
+  bool get_merge_matched_tests_flag() const;
   bool has_csmpi() const;
 
   // Accessors for querying trace file to dumpi_to_graph assignment 
@@ -93,9 +93,9 @@ public:
     out << "\t- Represent unmatched tests? " 
         << config.represent_unmatched_tests << std::endl;
     out << "\t- Condense unmatched tests? "   
-        << config.condense_unmatched_tests << std::endl;
+        << config.merge_unmatched_tests << std::endl;
     out << "\t- Condense matched tests? " 
-        << config.condense_matched_tests << std::endl;
+        << config.merge_matched_tests << std::endl;
     out << "Trace Directories:" << std::endl;
     for (auto trace_dir : config.trace_dirs) {
       out << "\t- " << trace_dir << std::endl;
@@ -133,10 +133,10 @@ private:
   // If we do, will each unmatched test, of which there could be very many, 
   // be represented by a separate vertex, or will we condense consecutive 
   // unmatched tests into a single vertex? 
-  bool condense_unmatched_tests = false; 
+  bool merge_unmatched_tests = false; 
   // Will we do a similar condensing into a single vertex for matching functions
   // that can result in more than one match? (e.g., MPI_Testsome) 
-  bool condense_matched_tests = false;
+  bool merge_matched_tests = false;
 
   // A flag to determine whether we will ingest CSMPI traces in addition to 
   // DUMPI traces. This will be set to true if "callstack" is a requested 
@@ -154,8 +154,8 @@ private:
     ar & vertex_labels;
     ar & edge_labels;
     ar & represent_unmatched_tests;
-    ar & condense_unmatched_tests;
-    ar & condense_matched_tests;
+    ar & merge_unmatched_tests;
+    ar & merge_matched_tests;
     ar & trace_dirs;
     ar & dir_to_trace_rank_assignments;
     ar & dir_to_trace_file_assignments;

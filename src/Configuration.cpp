@@ -90,8 +90,8 @@ Configuration parse_config_file( std::string config_file_path )
                             vertex_labels,
                             edge_labels,
                             (bool)config_json["represent_unmatched_tests"],
-                            (bool)config_json["condense_unmatched_tests"],
-                            (bool)config_json["condense_matched_tests"] );
+                            (bool)config_json["merge_unmatched_tests"],
+                            (bool)config_json["merge_matched_tests"] );
   return config; 
 }
 
@@ -145,14 +145,14 @@ bool Configuration::get_represent_unmatched_tests_flag() const
   return this->represent_unmatched_tests;
 }
 
-bool Configuration::get_condense_unmatched_tests_flag() const
+bool Configuration::get_merge_unmatched_tests_flag() const
 {
-  return this->condense_unmatched_tests;
+  return this->merge_unmatched_tests;
 }
 
-bool Configuration::get_condense_matched_tests_flag() const
+bool Configuration::get_merge_matched_tests_flag() const
 {
-  return this->condense_matched_tests;
+  return this->merge_matched_tests;
 }
 
 Configuration& Configuration::operator=(const Configuration& rhs)
@@ -165,8 +165,8 @@ Configuration& Configuration::operator=(const Configuration& rhs)
   this->vertex_labels = rhs.get_vertex_labels();
   this->edge_labels = rhs.get_edge_labels();
   this->represent_unmatched_tests = rhs.get_represent_unmatched_tests_flag();
-  this->condense_unmatched_tests = rhs.get_condense_unmatched_tests_flag();
-  this->condense_matched_tests = rhs.get_condense_matched_tests_flag();
+  this->merge_unmatched_tests = rhs.get_merge_unmatched_tests_flag();
+  this->merge_matched_tests = rhs.get_merge_matched_tests_flag();
   this->trace_dirs = rhs.get_trace_dirs();
   this->dir_to_trace_file_assignments = rhs.get_dir_to_trace_file_assignments();
   this->dir_to_trace_rank_assignments = rhs.get_dir_to_trace_rank_assignments();
