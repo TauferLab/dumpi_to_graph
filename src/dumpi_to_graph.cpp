@@ -48,6 +48,7 @@ int main(int argc, char** argv)
     std::cout << config << std::endl;
   }
 #endif
+
   // Set up callbacks for parsing MPI event stream from DUMPI trace files
   libundumpi_callbacks callbacks; 
   libundumpi_clear_callbacks(&callbacks);
@@ -158,6 +159,7 @@ int main(int argc, char** argv)
 #endif
     mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
 
+
 #ifdef SANITY_CHECK
     // Do a big sanity check on all of the trace contents
     for ( auto kvp : rank_to_trace ) {
@@ -192,9 +194,11 @@ int main(int argc, char** argv)
 #endif
     mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
     
-    // Merge all partial views of the event graph into a single igraph graph,
-    // set vertex and edge attributes
+    // Merge all partial views of the event graph 
     event_graph.merge();
+
+    // Construct igraph Graph object from the merged views
+    event_graph.build_igraph_representation();
 
     // Write out the event graph to disk
     event_graph.write();

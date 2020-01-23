@@ -40,6 +40,9 @@ public:
   // Function to merge the partial edge lists into a single igraph object
   void merge();
 
+  // Function to build an igraph Graph object from the merged edge list data
+  void build_igraph_representation();
+
   // Function to write the igraph object to file
   void write() const;
 
@@ -85,7 +88,7 @@ private:
   std::vector<std::pair<size_t,size_t>> message_order_edges;
 
   // Data structures for event graph labels 
-  std::unordered_map<size_t,size_t> logical_timestamps; // FIXME: scalar-only for right now
+  std::unordered_map<size_t,size_t> vertex_id_to_lts; // FIXME: scalar-only for right now
 
   // Data directly copied from configuration and traces
   Configuration config;
@@ -103,8 +106,13 @@ private:
   std::unordered_map<size_t,uint8_t> vertex_id_to_event_type;
   std::unordered_map<size_t,double> vertex_id_to_wall_time;
   std::unordered_map<size_t,int> vertex_id_to_pid; 
-
+  
+  // Associates each vertex with the MPI function call that generated the event
+  // it represents
   std::unordered_map<size_t,std::pair<std::string,size_t>> vertex_id_to_fn_call;
+
+  // Associates each vertex with the callstack that terminates in the MPI 
+  // function call that generated the event it represents
   std::unordered_map<size_t,std::string> vertex_id_to_callstack;
 
 };

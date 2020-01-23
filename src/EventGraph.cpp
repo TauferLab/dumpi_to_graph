@@ -714,9 +714,9 @@ void EventGraph::apply_scalar_logical_clock()
       // Case 1: Init events always get the initial logical time stamp
       if ( event_type == 2 ) {
 #ifdef PARANOID_INSERTION
-        auto vid_search = this->logical_timestamps.find( vertex_id );
-        if ( vid_search == this->logical_timestamps.end() ) {
-          this->logical_timestamps.insert( { vertex_id, initial_lts } );
+        auto vid_search = this->vertex_id_to_lts.find( vertex_id );
+        if ( vid_search == this->vertex_id_to_lts.end() ) {
+          this->vertex_id_to_lts.insert( { vertex_id, initial_lts } );
         } else {
           std::stringstream oss;
           oss << "Vertex ID: " << vertex_id 
@@ -725,7 +725,7 @@ void EventGraph::apply_scalar_logical_clock()
           throw std::runtime_error( oss.str() );
         }
 #else
-        this->logical_timestamps.insert( { vertex_id, initial_lts } );
+        this->vertex_id_to_lts.insert( { vertex_id, initial_lts } );
 #endif
       }
       // Case 2: Vertex represents a send
@@ -737,8 +737,8 @@ void EventGraph::apply_scalar_logical_clock()
        
         // Check that this send vertex's local predecessor already has a logical 
         // time stamp
-        auto search = this->logical_timestamps.find( local_pred_vertex_id );
-        if ( search == this->logical_timestamps.end() ) {
+        auto search = this->vertex_id_to_lts.find( local_pred_vertex_id );
+        if ( search == this->vertex_id_to_lts.end() ) {
           std::ostringstream oss;
           oss << "Rank: " << rank 
               << " send vertex: " << vertex_id
@@ -747,11 +747,11 @@ void EventGraph::apply_scalar_logical_clock()
               << std::endl;
           throw std::runtime_error( oss.str() ); 
         }
-        size_t local_pred_lts = this->logical_timestamps.at( local_pred_vertex_id );
+        size_t local_pred_lts = this->vertex_id_to_lts.at( local_pred_vertex_id );
 
         // Get my lts by incrementing local pred's
         size_t lts = local_pred_lts + tick;
-        this->logical_timestamps.insert( { vertex_id, lts } );
+        this->vertex_id_to_lts.insert( { vertex_id, lts } );
         
         // Check that this send vertex has a channel associated with it so that
         // we can propagate its logical time stamp to its remote successor
@@ -782,8 +782,8 @@ void EventGraph::apply_scalar_logical_clock()
         
         // Check that this recv vertex's local predecessor already has a logical
         // time stamp
-        auto search = this->logical_timestamps.find( local_pred_vertex_id );
-        if ( search == this->logical_timestamps.end() ) {
+        auto search = this->vertex_id_to_lts.find( local_pred_vertex_id );
+        if ( search == this->vertex_id_to_lts.end() ) {
           std::ostringstream oss;
           oss << "Rank: " << rank 
               << " recv vertex: " << vertex_id
@@ -791,7 +791,7 @@ void EventGraph::apply_scalar_logical_clock()
               << std::endl;
           throw std::runtime_error( oss.str() ); 
         }
-        size_t local_pred_lts = this->logical_timestamps.at( local_pred_vertex_id );
+        size_t local_pred_lts = this->vertex_id_to_lts.at( local_pred_vertex_id );
 
         // Get remote predecessor's lts
         Channel channel = this->vertex_id_to_channel.at( vertex_id );
@@ -806,7 +806,7 @@ void EventGraph::apply_scalar_logical_clock()
         // Calculate this recv's logical time stamp according to Lamport clock
         // rule
         size_t lts = std::max( local_pred_lts, remote_pred_lts ) + tick;
-        this->logical_timestamps.insert( { vertex_id, lts } );
+        this->vertex_id_to_lts.insert( { vertex_id, lts } );
 
       }
       // Case 4: Everything else. 
@@ -814,10 +814,10 @@ void EventGraph::apply_scalar_logical_clock()
       else {
         // Get local predecessor's lts
         size_t local_pred_vertex_id = vertex_id - 1;
-        size_t local_pred_lts = this->logical_timestamps.at( local_pred_vertex_id );
+        size_t local_pred_lts = this->vertex_id_to_lts.at( local_pred_vertex_id );
         // Get my lts by incrementing local pred's
         size_t lts = local_pred_lts + tick;
-        this->logical_timestamps.insert( { vertex_id, lts } );
+        this->vertex_id_to_lts.insert( { vertex_id, lts } );
       }
     } // Loop over vertex sequence for a single trace rank
   } // Loop over all trace ranks managed by this dumpi_to_graph rank
@@ -838,16 +838,19 @@ void EventGraph::merge()
   int wall_time_map_tag      = 3;
   int pid_map_tag            = 4;
   int callstack_map_tag      = 5;
+  int fn_call_map_tag        = 6;
   int message_order_edge_tag = 17;
   int program_order_edge_tag = 36;
 
   // Accumulate all graph data into these
   std::vector<size_t> vertex_ids = this->vertex_ids; 
-  std::unordered_map<size_t,size_t> vertex_id_to_lts = this->logical_timestamps;
+  std::unordered_map<size_t,size_t> vertex_id_to_lts = this->vertex_id_to_lts;
   std::unordered_map<size_t,uint8_t> vertex_id_to_event_type = this->vertex_id_to_event_type;
   std::unordered_map<size_t,double> vertex_id_to_wall_time = this->vertex_id_to_wall_time;
   std::unordered_map<size_t,int> vertex_id_to_pid = this->vertex_id_to_pid;
+  std::unordered_map<size_t,std::pair<std::string,size_t>> vertex_id_to_fn_call = this->vertex_id_to_fn_call;
   std::unordered_map<size_t,std::string> vertex_id_to_callstack = this->vertex_id_to_callstack;
+
 
   std::vector<std::pair<size_t,size_t>> message_order_edges = this->message_order_edges;
   std::vector<std::pair<size_t,size_t>> program_order_edges = this->program_order_edges;
@@ -868,7 +871,10 @@ void EventGraph::merge()
       std::unordered_map<size_t,uint8_t> event_type_map_recv_buffer;
       std::unordered_map<size_t,double> wall_time_map_recv_buffer;
       std::unordered_map<size_t,int> pid_map_recv_buffer;
+      
       std::unordered_map<size_t,std::string> callstack_map_recv_buffer;
+      std::unordered_map<size_t,std::pair<std::string,size_t>> fn_call_map_recv_buffer;
+
       // Receive logical timestamps
       world.recv( i, lts_map_tag, lts_map_recv_buffer );
       for ( auto kvp : lts_map_recv_buffer ) {
@@ -890,12 +896,18 @@ void EventGraph::merge()
         vertex_id_to_pid.insert( kvp );
       }
 
+      // Receive callstacks if available
       if ( this->config.has_csmpi() ) {
-        // Receive callstacks
         world.recv( i, callstack_map_tag, callstack_map_recv_buffer );
         for ( auto kvp : callstack_map_recv_buffer ) {
           vertex_id_to_callstack.insert( kvp );
         } 
+      }
+
+      // Receive function-index pairs
+      world.recv( i, fn_call_map_tag, fn_call_map_recv_buffer );
+      for ( auto kvp : fn_call_map_recv_buffer ) {
+        vertex_id_to_fn_call.insert( kvp );
       }
 
       // A common recv buffer for edges
@@ -914,23 +926,41 @@ void EventGraph::merge()
       }
     }
     
+    // Update members
+    this->vertex_ids = vertex_ids;
+    this->vertex_id_to_lts = vertex_id_to_lts;
+    this->vertex_id_to_event_type = vertex_id_to_event_type;
+    this->vertex_id_to_wall_time = vertex_id_to_wall_time;
+    this->vertex_id_to_pid = vertex_id_to_pid;
+    if ( this->config.has_csmpi() ) {
+      this->vertex_id_to_callstack = vertex_id_to_callstack;
+    }
+    this->vertex_id_to_fn_call = vertex_id_to_fn_call;
+    this->program_order_edges = program_order_edges;
+    this->message_order_edges = message_order_edges;
   }
   else {
     // Send vertex IDs
     world.send( 0, vertex_ids_tag, this->vertex_ids );
     // Send vertex label maps
-    world.send( 0, lts_map_tag, this->logical_timestamps );
+    world.send( 0, lts_map_tag, this->vertex_id_to_lts );
     world.send( 0, event_type_map_tag, this->vertex_id_to_event_type );
     world.send( 0, wall_time_map_tag, this->vertex_id_to_wall_time );
     world.send( 0, pid_map_tag, this->vertex_id_to_pid );
     if ( this->config.has_csmpi() ) {
       world.send( 0, callstack_map_tag, this->vertex_id_to_callstack );
     }
+    world.send( 0, fn_call_map_tag, this->vertex_id_to_fn_call );
     // Send edges
     world.send( 0, message_order_edge_tag, this->message_order_edges );
     world.send( 0, program_order_edge_tag, this->program_order_edges );
   }
+}
 
+void EventGraph::build_igraph_representation() 
+{
+  boost::mpi::communicator world;
+  int rank = world.rank();
   // Root constructs the igraph representation
   if ( rank == 0 ) {
     std::unordered_map<uint8_t, std::string> type_to_name =
@@ -958,6 +988,8 @@ void EventGraph::merge()
     const char wtime_attr_name[16]      = "wall_time";
     const char pid_attr_name[16]        = "process_id";
     const char callstack_attr_name[16]  = "callstack";
+    const char generating_fn_name[32]   = "generating_function";
+    const char fn_call_index_name[16]   = "call_number";
 
     for ( auto vid : vertex_ids ) {
 
@@ -967,6 +999,8 @@ void EventGraph::merge()
       size_t lts = vertex_id_to_lts[vid];
       double wtime = vertex_id_to_wall_time[vid];
       int pid = vertex_id_to_pid[vid];
+      const std::string generating_fn = vertex_id_to_fn_call[vid].first;
+      size_t fn_call_index = vertex_id_to_fn_call[vid].second;
 
       // Lookup callstack label if available from CSMPI trace
       std::string callstack;
@@ -982,8 +1016,12 @@ void EventGraph::merge()
       igraph_rc = igraph_cattribute_VAN_set( &graph, wtime_attr_name, vid, wtime );
       // Set process ID vertex attribute
       igraph_rc = igraph_cattribute_VAN_set( &graph, pid_attr_name, vid, pid );
+      // Set generating function type vertex attribute
+      igraph_rc = igraph_cattribute_VAS_set( &graph, generating_fn_name, vid, generating_fn.c_str() );
+      // Set generating function call index vertex attribute
+      igraph_rc = igraph_cattribute_VAN_set( &graph, fn_call_index_name, vid, fn_call_index );
+      // Set callstack vertex attribute
       if ( this->config.has_csmpi() ) {
-        // Set callstack vertex attribute
         igraph_rc = igraph_cattribute_VAS_set( &graph, callstack_attr_name, vid, callstack.c_str() );
       }
     }
@@ -1055,8 +1093,8 @@ void EventGraph::report_program_order_edges() const
     auto dst_vertex_id = edge.second;
     auto src_vertex_type = this->vertex_id_to_event_type.at( src_vertex_id );
     auto dst_vertex_type = this->vertex_id_to_event_type.at( dst_vertex_id );
-    auto src_vertex_lts = this->logical_timestamps.at( src_vertex_id );
-    auto dst_vertex_lts = this->logical_timestamps.at( dst_vertex_id );
+    auto src_vertex_lts = this->vertex_id_to_lts.at( src_vertex_id );
+    auto dst_vertex_lts = this->vertex_id_to_lts.at( dst_vertex_id );
     std::cout << "Program Order Edge: "
               << "ID: " << src_vertex_id 
               << ", Type: " << type_to_name.at( src_vertex_type )
@@ -1074,11 +1112,11 @@ void EventGraph::report_message_order_edges() const
   for ( auto edge : this->message_order_edges ) {
     size_t src_vertex_id = edge.first;
     size_t dst_vertex_id = edge.second;
-    size_t src_vertex_lts = this->logical_timestamps.at( src_vertex_id );
+    size_t src_vertex_lts = this->vertex_id_to_lts.at( src_vertex_id );
     size_t dst_vertex_lts;
-    auto search = this->logical_timestamps.find( dst_vertex_id ); 
-    if ( search != this->logical_timestamps.end() ) {
-      dst_vertex_lts = this->logical_timestamps.at( dst_vertex_id );
+    auto search = this->vertex_id_to_lts.find( dst_vertex_id ); 
+    if ( search != this->vertex_id_to_lts.end() ) {
+      dst_vertex_lts = this->vertex_id_to_lts.at( dst_vertex_id );
     } else {
       dst_vertex_lts = 0;
     }
