@@ -46,7 +46,7 @@
         "wall_time_diff"
     ],
 
-    "condense_matched_tests": false,
+    "merge_matched_tests": false,
     "represent_unmatched_tests": false,
-    "condense_unmatched_tests": false
+    "merge_unmatched_tests": false
 }
