@@ -40,6 +40,8 @@ public:
   // Function to merge the partial edge lists into a single igraph object
   void merge();
 
+  void merge_matched_test_vertices();
+
   // Function to build an igraph Graph object from the merged edge list data
   void build_igraph_representation();
 

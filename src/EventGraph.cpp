@@ -957,123 +957,181 @@ void EventGraph::merge()
   }
 }
 
+void EventGraph::merge_matched_test_vertices()
+{
+  boost::mpi::communicator world;
+  int rank = world.rank();
+
+  std::unordered_map< std::pair<std::string,size_t>, std::vector<size_t>, pair_hash > merge_sets;
+  
+  // Determine sets of vertices to merge
+  for ( auto vid : vertex_ids ) {
+
+#ifdef SANITY_CHECK
+    auto vid_search = vertex_id_to_fn_call.find( vid );
+    if ( vid_search == vertex_id_to_fn_call.end() ) {
+      std::cout << "Vertex ID: " << vid << " missing associated function call" << std::endl;
+    }
+#endif
+
+    auto fn_call = vertex_id_to_fn_call.at( vid );
+    auto fn = fn_call.first;
+    if ( fn == "MPI_Waitsome" or fn == "MPI_Waitall" or fn == "MPI_Testsome" or fn == "MPI_Testall" )  {
+      auto fn_call_search = merge_sets.find( fn_call );
+      if ( fn_call_search == merge_sets.end() ) {
+        std::vector<size_t> vertex_ids_to_merge = { vid };
+        merge_sets.insert( { fn_call, vertex_ids_to_merge } );
+      }
+      else {
+        fn_call_search->second.push_back( vid );
+      }
+    }
+  }
+
+#ifdef REPORT_PROGRESS_VERBOSE
+  for ( auto kvp : merge_sets ) {
+    std::cout << "For event: " << "(" << kvp.first.first << ", " << kvp.first.second << ")" << " merge vertices: ";
+    for ( auto vid : kvp.second ) {
+      std::cout << vid << " ";
+    }
+    std::cout << std::endl;
+  }
+#endif
+
+  std::unordered_map<size_t,std::vector<size_t>> vid_to_neighbors;
+  std::set<size_t> vertices_to_merge;
+  for ( auto kvp : merge_sets ) {
+    auto vids = kvp.second;
+    vid_to_neighbors.insert( { vids[0], vids } );
+    for ( auto v : vids ) {
+      vertices_to_merge.insert( v );
+    }
+  }
+
+  std::vector<std::pair<size_t,size_t>> new_message_order_edges;
+  std::vector<std::pair<size_t,size_t>> new_program_order_edges;
+  for ( auto edge : message_order_edges ) {
+    
+  }
+
+
+
+
+}
+
+
 void EventGraph::build_igraph_representation() 
 {
   boost::mpi::communicator world;
   int rank = world.rank();
-  // Root constructs the igraph representation
-  if ( rank == 0 ) {
-    std::unordered_map<uint8_t, std::string> type_to_name =
-    {
-      {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}
-    };
-    int igraph_rc;
-    // Turn on the igraph attribute handler 
-    igraph_i_set_attribute_table(&igraph_cattribute_table);
     
-    // Initialize the graph
-    size_t n_vertices = vertex_ids.size();
-    igraph_t graph;
+  std::unordered_map<uint8_t, std::string> type_to_name =
+  {
+    {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}
+  };
+  int igraph_rc;
+  // Turn on the igraph attribute handler 
+  igraph_i_set_attribute_table(&igraph_cattribute_table);
+  
+  // Initialize the graph
+  size_t n_vertices = vertex_ids.size();
+  igraph_t graph;
 
-    // boolean parameter makes the graph directed
-    igraph_rc = igraph_empty( &graph, n_vertices, true ); 
+  // boolean parameter makes the graph directed
+  igraph_rc = igraph_empty( &graph, n_vertices, true ); 
 
 #ifdef REPORT_PROGRESS
-    std::cout << "Base igraph object constructed" << std::endl;
+  std::cout << "Base igraph object constructed" << std::endl;
 #endif
 
-    // Add vertex attributes
-    const char event_type_attr_name[16] = "event_type";
-    const char lts_attr_name[16]        = "logical_time";
-    const char wtime_attr_name[16]      = "wall_time";
-    const char pid_attr_name[16]        = "process_id";
-    const char callstack_attr_name[16]  = "callstack";
-    const char generating_fn_name[32]   = "generating_function";
-    const char fn_call_index_name[16]   = "call_number";
+  // Add vertex attributes
+  const char event_type_attr_name[16] = "event_type";
+  const char lts_attr_name[16]        = "logical_time";
+  const char wtime_attr_name[16]      = "wall_time";
+  const char pid_attr_name[16]        = "process_id";
+  const char callstack_attr_name[16]  = "callstack";
+  const char generating_fn_name[32]   = "generating_function";
+  const char fn_call_index_name[16]   = "call_number";
 
-    for ( auto vid : vertex_ids ) {
+  for ( auto vid : vertex_ids ) {
 
-      // Get vertex labels available directly from DUMPI trace
-      uint8_t event_type = vertex_id_to_event_type[vid];
-      const std::string event_type_str = type_to_name[event_type];
-      size_t lts = vertex_id_to_lts[vid];
-      double wtime = vertex_id_to_wall_time[vid];
-      int pid = vertex_id_to_pid[vid];
-      const std::string generating_fn = vertex_id_to_fn_call[vid].first;
-      size_t fn_call_index = vertex_id_to_fn_call[vid].second;
+    // Get vertex labels available directly from DUMPI trace
+    uint8_t event_type = vertex_id_to_event_type[vid];
+    const std::string event_type_str = type_to_name[event_type];
+    size_t lts = vertex_id_to_lts[vid];
+    double wtime = vertex_id_to_wall_time[vid];
+    int pid = vertex_id_to_pid[vid];
+    const std::string generating_fn = vertex_id_to_fn_call[vid].first;
+    size_t fn_call_index = vertex_id_to_fn_call[vid].second;
 
-      // Lookup callstack label if available from CSMPI trace
-      std::string callstack;
-      if ( this->config.has_csmpi() ) {
-        callstack = vertex_id_to_callstack[vid];
-      }
-
-      // Set event type vertex attribute
-      igraph_rc = igraph_cattribute_VAS_set( &graph, event_type_attr_name, vid, event_type_str.c_str() );
-      // Set logical timestamp vertex attribute
-      igraph_rc = igraph_cattribute_VAN_set( &graph, lts_attr_name, vid, lts );
-      // Set wall-time timestamp vertex attribute
-      igraph_rc = igraph_cattribute_VAN_set( &graph, wtime_attr_name, vid, wtime );
-      // Set process ID vertex attribute
-      igraph_rc = igraph_cattribute_VAN_set( &graph, pid_attr_name, vid, pid );
-      // Set generating function type vertex attribute
-      igraph_rc = igraph_cattribute_VAS_set( &graph, generating_fn_name, vid, generating_fn.c_str() );
-      // Set generating function call index vertex attribute
-      igraph_rc = igraph_cattribute_VAN_set( &graph, fn_call_index_name, vid, fn_call_index );
-      // Set callstack vertex attribute
-      if ( this->config.has_csmpi() ) {
-        igraph_rc = igraph_cattribute_VAS_set( &graph, callstack_attr_name, vid, callstack.c_str() );
-      }
+    // Lookup callstack label if available from CSMPI trace
+    std::string callstack;
+    if ( this->config.has_csmpi() ) {
+      callstack = vertex_id_to_callstack[vid];
     }
-#ifdef REPORT_PROGRESS
-    std::cout << "Vertex attributes added" << std::endl;
-#endif
-    // Add edges
-    igraph_vector_t edges;
-    size_t n_edges = 2 * ( program_order_edges.size() + message_order_edges.size() );
-    igraph_vector_init( &edges, n_edges ); 
-    size_t edge_idx = 0;
-    for ( auto edge : program_order_edges ) {
-      VECTOR(edges)[ edge_idx ] = edge.first;
-      edge_idx++;
-      VECTOR(edges)[ edge_idx ] = edge.second;
-      edge_idx++;
-    }
-    for ( auto edge : message_order_edges ) {
-      VECTOR(edges)[ edge_idx ] = edge.first;
-      edge_idx++;
-      VECTOR(edges)[ edge_idx ] = edge.second;
-      edge_idx++;
-    }
-    igraph_rc = igraph_add_edges( &graph, &edges, 0 );
- 
-    // Assign
-    this->_graph = graph;
 
+    // Set event type vertex attribute
+    igraph_rc = igraph_cattribute_VAS_set( &graph, event_type_attr_name, vid, event_type_str.c_str() );
+    // Set logical timestamp vertex attribute
+    igraph_rc = igraph_cattribute_VAN_set( &graph, lts_attr_name, vid, lts );
+    // Set wall-time timestamp vertex attribute
+    igraph_rc = igraph_cattribute_VAN_set( &graph, wtime_attr_name, vid, wtime );
+    // Set process ID vertex attribute
+    igraph_rc = igraph_cattribute_VAN_set( &graph, pid_attr_name, vid, pid );
+    // Set generating function type vertex attribute
+    igraph_rc = igraph_cattribute_VAS_set( &graph, generating_fn_name, vid, generating_fn.c_str() );
+    // Set generating function call index vertex attribute
+    igraph_rc = igraph_cattribute_VAN_set( &graph, fn_call_index_name, vid, fn_call_index );
+    // Set callstack vertex attribute
+    if ( this->config.has_csmpi() ) {
+      igraph_rc = igraph_cattribute_VAS_set( &graph, callstack_attr_name, vid, callstack.c_str() );
+    }
   }
+#ifdef REPORT_PROGRESS
+  std::cout << "Vertex attributes added" << std::endl;
+#endif
+  // Add edges
+  igraph_vector_t edges;
+  size_t n_edges = 2 * ( program_order_edges.size() + message_order_edges.size() );
+  igraph_vector_init( &edges, n_edges ); 
+  size_t edge_idx = 0;
+  for ( auto edge : program_order_edges ) {
+    VECTOR(edges)[ edge_idx ] = edge.first;
+    edge_idx++;
+    VECTOR(edges)[ edge_idx ] = edge.second;
+    edge_idx++;
+  }
+  for ( auto edge : message_order_edges ) {
+    VECTOR(edges)[ edge_idx ] = edge.first;
+    edge_idx++;
+    VECTOR(edges)[ edge_idx ] = edge.second;
+    edge_idx++;
+  }
+  igraph_rc = igraph_add_edges( &graph, &edges, 0 );
+
+  // Assign
+  this->_graph = graph;
 }
 
 void EventGraph::write() const
 {
   int mpi_rc, rank;
   mpi_rc = MPI_Comm_rank( MPI_COMM_WORLD, &rank );
-  if ( rank == 0 ) {
-    int igraph_rc;
+  int igraph_rc;
 
-    std::string trace_dir = this->config.get_trace_dirs()[0];
-    std::stringstream ss;
-    ss << trace_dir << "/event_graph.graphml"; 
-    std::string output_path = ss.str();
+  std::string trace_dir = this->config.get_trace_dirs()[0];
+  std::stringstream ss;
+  ss << trace_dir << "/event_graph.graphml"; 
+  std::string output_path = ss.str();
 
-    FILE* outfile;
-    outfile = fopen( output_path.c_str(), "w" );
-    igraph_rc = igraph_write_graph_graphml( &(this->_graph), outfile, false );
-    fclose( outfile );
+  FILE* outfile;
+  outfile = fopen( output_path.c_str(), "w" );
+  igraph_rc = igraph_write_graph_graphml( &(this->_graph), outfile, false );
+  fclose( outfile );
 #ifdef REPORT_PROGRESS_MINIMAL
-    std::cout << "Wrote event graph to: " << output_path
-              << std::endl;
+  std::cout << "Wrote event graph to: " << output_path
+            << std::endl;
 #endif
-  }
 }
 
 

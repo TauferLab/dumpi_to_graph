@@ -197,11 +197,14 @@ int main(int argc, char** argv)
     // Merge all partial views of the event graph 
     event_graph.merge();
 
-    // Construct igraph Graph object from the merged views
-    event_graph.build_igraph_representation();
-
-    // Write out the event graph to disk
-    event_graph.write();
+    // Root builds igraph Graph object from the merged views and writes
+    if ( dumpi_to_graph_rank == 0 ) {
+      event_graph.build_igraph_representation();
+      if ( config.get_merge_matched_tests_flag() ) {
+        event_graph.merge_matched_test_vertices();
+      }
+      event_graph.write();
+    }
 
   } // End of loop over trace directories
 
