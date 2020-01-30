@@ -29,7 +29,7 @@ An example configuration file is in `config/default.json` The following options 
     * Ideally, an implementation from the 21st century 
     * Whatever application you want to trace is probably more demanding feature-wise than `dumpi_to_graph` is. 
 * SST-DUMPI (https://github.com/sstsimulator/sst-dumpi)
-* Boost 1.67.0 (https://www.boost.org/users/history/version_1_67_0.html)
+* Boost >=1.70.0 (https://www.boost.org/users/history/version_1_70_0.html)
 * JSON for Modern C++ (https://github.com/nlohmann/json)
 
 ### Known Issues:
