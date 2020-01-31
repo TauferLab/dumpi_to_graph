@@ -24,8 +24,7 @@ int trace_file_to_rank( const std::string trace_file );
 template<typename T>
 void validate_dumpi_event( T event_ptr,
                            const dumpi_time* cpu_time_ptr,
-                           const dumpi_time* wall_time_ptr,
-                           const dumpi_perfinfo* perf_counter_ptr )
+                           const dumpi_time* wall_time_ptr )
 {
   if ( event_ptr     == nullptr ||
        cpu_time_ptr  == nullptr ||
@@ -35,8 +34,24 @@ void validate_dumpi_event( T event_ptr,
     ss << "corrupted event data - exiting" << std::endl;
     throw std::runtime_error( ss.str() );
   }
-}
+} 
 
+template<typename T>
+void validate_dumpi_event( T event_ptr,
+                           const dumpi_time* cpu_time_ptr,
+                           const dumpi_time* wall_time_ptr,
+                           const dumpi_perfinfo* perf_counter_ptr )
+{
+  if ( event_ptr     == nullptr ||
+       cpu_time_ptr  == nullptr ||
+       wall_time_ptr == nullptr ||
+       perf_counter_ptr == nullptr
+     ) {
+    std::stringstream ss;
+    ss << "corrupted event data - exiting" << std::endl;
+    throw std::runtime_error( ss.str() );
+  }
+}
 struct rank_seq_hash 
 {
 template <typename RankType, typename ElemType>
