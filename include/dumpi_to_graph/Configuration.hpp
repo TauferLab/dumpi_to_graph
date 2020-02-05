@@ -56,7 +56,7 @@ public:
   bool get_condense_unmatched_tests_flag() const;
   bool get_condense_matched_tests_flag() const;
   bool has_csmpi() const;
-
+  bool get_papi_flag() const; 
   // Accessors for querying trace file to dumpi_to_graph assignment 
   std::unordered_map<std::string, std::unordered_map<int,std::vector<int>>> get_dir_to_trace_rank_assignments() const;
   std::unordered_map<std::string, std::unordered_map<int,std::vector<std::string>>> get_dir_to_trace_file_assignments() const;
@@ -142,7 +142,9 @@ private:
   // DUMPI traces. This will be set to true if "callstack" is a requested 
   // vertex label. 
   bool csmpi_flag = false;
-
+  
+  // A flag to check for use of PAPI counter in vertex labelling. 
+  bool perf_counter = false; 
   // Boost serialization stuff so that the root process can read in the config
   // and broadcast it to everyone else. 
   friend class boost::serialization::access; 

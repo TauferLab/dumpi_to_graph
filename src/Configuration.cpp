@@ -180,6 +180,11 @@ bool Configuration::has_csmpi() const
   return csmpi_flag;
 }
 
+bool Configuration::get_papi_flag() const
+{
+  return perf_counter;
+}
+
 void Configuration::set_trace_dirs(std::vector<std::string> trace_dirs) 
 {
   this->trace_dirs = trace_dirs;
