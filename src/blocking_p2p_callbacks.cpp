@@ -19,9 +19,9 @@ int cb_MPI_Recv(const dumpi_recv *prm,
                 const dumpi_perfinfo *perf, 
                 void *uarg) 
 {
+  Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
   validate_dumpi_event(prm, cpu, wall, perf);
-  Trace* trace = (Trace*) uarg;
   dumpi_recv event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -60,9 +60,9 @@ int cb_MPI_Send(const dumpi_send *prm,
                 const dumpi_perfinfo *perf, 
                 void *uarg) 
 {
-  // Check that event data is OK
-  validate_dumpi_event(prm, cpu, wall, perf);
   Trace* trace = (Trace*) uarg;
+  // Check that event data is OK 
+  validate_dumpi_event(prm, cpu, wall, perf);
   dumpi_send event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;

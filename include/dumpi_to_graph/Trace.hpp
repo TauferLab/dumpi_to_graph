@@ -59,7 +59,9 @@ public:
                             int key );
 
   void register_initial_dumpi_timestamp( const dumpi_time& wall_time ); 
-  void register_dumpi_timestamp( const dumpi_time& wall_time ); 
+  void register_dumpi_timestamp( const dumpi_time& wall_time );
+
+  void register_papi_struct(const dumpi_perfinfo& counters);
 
   void register_request( int request_id, const Request& request );
 
@@ -146,7 +148,9 @@ private:
   // Tracking wall-time timestamps
   double initial_timestamp; 
   std::vector<double> wall_time_seq;
-
+  
+  //Tracking papi perfcounter structs
+  std::vector<dumpi_perfinfo> counter_sets;
   // For send and recv vertices, there is an associated channel
   std::unordered_map<size_t, Channel> vertex_id_to_channel;
 

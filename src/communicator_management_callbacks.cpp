@@ -19,6 +19,7 @@ int cb_MPI_Comm_split(const dumpi_comm_split *prm,
                       void *uarg) 
 {
   Trace* trace = (Trace*) uarg;
+  // Check that event data is OK 
   validate_dumpi_event(prm, cpu, wall, perf);
   dumpi_comm_split event = *prm;
   auto parent_comm_id = event.oldcomm;
@@ -47,6 +48,7 @@ int cb_MPI_Comm_rank(const dumpi_comm_rank *prm,
                      void *uarg) 
 {
   Trace* trace = (Trace*) uarg;
+  // Check that event data is OK 
   validate_dumpi_event(prm, cpu, wall, perf);
   dumpi_comm_rank event = *prm;
 
