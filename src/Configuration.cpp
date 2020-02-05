@@ -67,12 +67,16 @@ Configuration parse_config_file( std::string config_file_path )
     }
   }
   // Set which vertex labels we will assign
+  bool perf_counter = false;
   std::set<std::string> vertex_labels;
   for (auto elem : config_json["vertex_labels"]) {
     std::string vertex_label(elem);
     auto search = allowed_vertex_labels.find( vertex_label );
     if (search != allowed_vertex_labels.end()) {
       vertex_labels.insert( vertex_label );
+      if(vertex_label.find("PAPI") != std::string::npos || vertex_label.find("MLX") != std::string::npos){
+        perf_counter = true;
+      }
     }
   }
   // Set which edge labels we will assign
@@ -91,7 +95,8 @@ Configuration parse_config_file( std::string config_file_path )
                             edge_labels,
                             (bool)config_json["represent_unmatched_tests"],
                             (bool)config_json["condense_unmatched_tests"],
-                            (bool)config_json["condense_matched_tests"] );
+                            (bool)config_json["condense_matched_tests"],
+                            perf_counter );
   return config; 
 }
 
@@ -178,6 +183,11 @@ Configuration& Configuration::operator=(const Configuration& rhs)
 bool Configuration::has_csmpi() const 
 { 
   return csmpi_flag;
+}
+
+bool Configuration::get_papi_flag() const
+{
+  return perf_counter;
 }
 
 void Configuration::set_trace_dirs(std::vector<std::string> trace_dirs) 
