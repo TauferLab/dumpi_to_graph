@@ -26,14 +26,16 @@ public:
     const std::set<std::string>& edge_labels,
     bool represent_unmatched_tests,
     bool condense_unmatched_tests,
-    bool condense_matched_tests ) : 
+    bool condense_matched_tests,
+    bool perf_counter ) : 
       mpi_functions(mpi_functions),
       happens_before_orders(happens_before_orders),
       vertex_labels(vertex_labels),
       edge_labels(edge_labels),
       represent_unmatched_tests(represent_unmatched_tests),
       condense_unmatched_tests(condense_unmatched_tests),
-      condense_matched_tests(condense_matched_tests)
+      condense_matched_tests(condense_matched_tests),
+      perf_counter(perf_counter)
       { 
         for ( auto vlabel : vertex_labels ) {
           if ( vlabel == "callstack" ) {
@@ -163,6 +165,7 @@ private:
     ar & dir_to_trace_file_assignments;
     ar & trace_rank_to_owning_rank;
     ar & csmpi_flag;
+    ar & perf_counter;
   }
 
 };
