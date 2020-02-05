@@ -16,7 +16,9 @@ const std::set<std::string> allowed_vertex_labels =
   "type",                                                                       
   "lamport_time",                                                               
   "wall_time",                                                                  
-  "callstack"                                                                  
+  "callstack",
+  "MLX_RCV_DATA",
+  "MLX_XMIT_DATA"                                                                  
 };                                                                              
                                                                                 
 const std::set<std::string> allowed_happens_before_orders =                     
