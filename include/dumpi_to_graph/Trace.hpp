@@ -98,10 +98,12 @@ public:
   void report_channel_to_send_seq();
   void report_channel_to_recv_seq();
 
+  bool get_papi_flag const(){return config::get_papi_flag;};
+
 private:
 
   Configuration config;
-
+  
   std::string trace_dir;
 
   // Number of ranks in the global communicator of the traced run
