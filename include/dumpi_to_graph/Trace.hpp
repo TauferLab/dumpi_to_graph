@@ -98,7 +98,7 @@ public:
   void report_channel_to_send_seq();
   void report_channel_to_recv_seq();
 
-  bool get_papi_flag() const {return config::get_papi_flag;};
+  bool get_papi_flag() const {return config.get_papi_flag();};
 
 private:
 
