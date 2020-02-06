@@ -27,7 +27,7 @@ int cb_MPI_Wait(const dumpi_wait *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->config::get_papi_flag()
+  bool papi = trace.get_papi_flag()
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
@@ -63,7 +63,7 @@ int cb_MPI_Waitany(const dumpi_waitany *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->config::get_papi_flag()
+  bool papi = trace.get_papi_flag()
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
@@ -102,7 +102,7 @@ int cb_MPI_Waitsome(const dumpi_waitsome *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->config::get_papi_flag()
+  bool papi = trace.get_papi_flag()
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
@@ -156,7 +156,7 @@ int cb_MPI_Waitall(const dumpi_waitall *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->config::get_papi_flag()
+  bool papi = trace.get_papi_flag()
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
@@ -198,7 +198,7 @@ int cb_MPI_Test(const dumpi_test *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->config::get_papi_flag()
+  bool papi = trace.get_papi_flag()
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
@@ -241,7 +241,7 @@ int cb_MPI_Testany(const dumpi_testany *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->config::get_papi_flag()
+  bool papi = trace.get_papi_flag()
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
@@ -284,7 +284,7 @@ int cb_MPI_Testsome(const dumpi_testsome *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->config::get_papi_flag()
+  bool papi = trace.get_papi_flag()
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
@@ -345,7 +345,7 @@ int cb_MPI_Testall(const dumpi_testall *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->config::get_papi_flag()
+  bool papi = trace.get_papi_flag()
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
