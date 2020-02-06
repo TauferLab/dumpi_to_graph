@@ -27,7 +27,13 @@ int cb_MPI_Wait(const dumpi_wait *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  validate_dumpi_event(prm, cpu, wall, perf);
+  bool papi = trace->config::get_papi_flag()
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall)
+  }
   dumpi_wait event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -57,7 +63,13 @@ int cb_MPI_Waitany(const dumpi_waitany *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  validate_dumpi_event(prm, cpu, wall, perf);
+  bool papi = trace->config::get_papi_flag()
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall)
+  }
   dumpi_waitany event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -90,7 +102,13 @@ int cb_MPI_Waitsome(const dumpi_waitsome *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  validate_dumpi_event(prm, cpu, wall, perf);
+  bool papi = trace->config::get_papi_flag()
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall)
+  }
   dumpi_waitsome event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -138,7 +156,13 @@ int cb_MPI_Waitall(const dumpi_waitall *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  validate_dumpi_event(prm, cpu, wall, perf);
+  bool papi = trace->config::get_papi_flag()
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall)
+  }
   dumpi_waitall event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -174,7 +198,13 @@ int cb_MPI_Test(const dumpi_test *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  validate_dumpi_event(prm, cpu, wall, perf);
+  bool papi = trace->config::get_papi_flag()
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall)
+  }
   dumpi_test event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -211,7 +241,13 @@ int cb_MPI_Testany(const dumpi_testany *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  validate_dumpi_event(prm, cpu, wall, perf);
+  bool papi = trace->config::get_papi_flag()
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall)
+  }
   dumpi_testany event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -248,7 +284,13 @@ int cb_MPI_Testsome(const dumpi_testsome *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  validate_dumpi_event(prm, cpu, wall, perf);
+  bool papi = trace->config::get_papi_flag()
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall)
+  }
   dumpi_testsome event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -303,7 +345,13 @@ int cb_MPI_Testall(const dumpi_testall *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  validate_dumpi_event(prm, cpu, wall, perf);
+  bool papi = trace->config::get_papi_flag()
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall)
+  }
   dumpi_testall event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;

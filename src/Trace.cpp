@@ -133,6 +133,11 @@ void Trace::register_dumpi_timestamp( const dumpi_time& wall_time )
   this->wall_time_seq.push_back( timestamp );
 }
 
+void Trace::register_papi_struct(const dumpi_perfinfo& counters)
+{
+  this->counter_sets.push_back(counters);
+}
+
 // Helper for updating channel_to_recv_seq and vertex_id_to_channel
 void Trace::register_recv( const Channel& channel, size_t recv_vertex_id )
 {
