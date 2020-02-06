@@ -18,7 +18,7 @@ int cb_MPI_Cancel(const dumpi_cancel *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace.get_papi_flag()
+  bool papi = trace->get_papi_flag()
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
@@ -46,7 +46,7 @@ int cb_MPI_Request_free(const dumpi_request_free *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace.get_papi_flag()
+  bool papi = trace->get_papi_flag()
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }

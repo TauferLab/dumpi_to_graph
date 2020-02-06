@@ -21,7 +21,7 @@ int cb_MPI_Irecv(const dumpi_irecv *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace.get_papi_flag()
+  bool papi = trace->get_papi_flag()
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
@@ -65,7 +65,7 @@ int cb_MPI_Isend(const dumpi_isend *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace.get_papi_flag()
+  bool papi = trace->get_papi_flag()
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
