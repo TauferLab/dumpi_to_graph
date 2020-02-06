@@ -20,12 +20,12 @@ int cb_MPI_Comm_split(const dumpi_comm_split *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->get_papi_flag()
+  bool papi = trace->get_papi_flag();
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
   else{
-    validate_dumpi_event(prm, cpu, wall)
+    validate_dumpi_event(prm, cpu, wall);
   }
   dumpi_comm_split event = *prm;
   auto parent_comm_id = event.oldcomm;
@@ -55,12 +55,12 @@ int cb_MPI_Comm_rank(const dumpi_comm_rank *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->get_papi_flag()
+  bool papi = trace->get_papi_flag();
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
   else{
-    validate_dumpi_event(prm, cpu, wall)
+    validate_dumpi_event(prm, cpu, wall);
   }
   dumpi_comm_rank event = *prm;
 

@@ -18,12 +18,12 @@ int cb_MPI_Cancel(const dumpi_cancel *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->get_papi_flag()
+  bool papi = trace->get_papi_flag();
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
   else{
-    validate_dumpi_event(prm, cpu, wall)
+    validate_dumpi_event(prm, cpu, wall);
   }
   dumpi_cancel event = *prm;
   dumpi_time cpu_time = *cpu;

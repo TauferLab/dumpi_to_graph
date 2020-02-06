@@ -16,12 +16,12 @@ int cb_MPI_Barrier(const dumpi_barrier *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->get_papi_flag()
+  bool papi = trace->get_papi_flag();
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
   else{
-    validate_dumpi_event(prm, cpu, wall)
+    validate_dumpi_event(prm, cpu, wall);
   }
   dumpi_perfinfo counters = *perf;
   dumpi_barrier event = *prm;
@@ -54,12 +54,12 @@ int cb_MPI_Reduce(const dumpi_reduce *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->get_papi_flag()
+  bool papi = trace->get_papi_flag();
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
   else{
-    validate_dumpi_event(prm, cpu, wall)
+    validate_dumpi_event(prm, cpu, wall);
   }
   dumpi_reduce event = *prm;
   dumpi_time cpu_time = *cpu;
@@ -89,12 +89,12 @@ int cb_MPI_Allreduce(const dumpi_allreduce *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->get_papi_flag()
+  bool papi = trace->get_papi_flag();
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
   else{
-    validate_dumpi_event(prm, cpu, wall)
+    validate_dumpi_event(prm, cpu, wall);
   }
   dumpi_allreduce event = *prm;
   dumpi_time cpu_time = *cpu;
@@ -124,12 +124,12 @@ int cb_MPI_Alltoall(const dumpi_alltoall *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->get_papi_flag()
+  bool papi = trace->get_papi_flag();
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
   else{
-    validate_dumpi_event(prm, cpu, wall)
+    validate_dumpi_event(prm, cpu, wall);
   }
   dumpi_alltoall event = *prm;
   dumpi_time cpu_time = *cpu;
@@ -160,12 +160,12 @@ int cb_MPI_Alltoallv(const dumpi_alltoallv *prm,
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
   
-  bool papi = trace->get_papi_flag()
+  bool papi = trace->get_papi_flag();
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
   else{
-    validate_dumpi_event(prm, cpu, wall)
+    validate_dumpi_event(prm, cpu, wall);
   }
   dumpi_alltoallv event = *prm;
   dumpi_time cpu_time = *cpu;

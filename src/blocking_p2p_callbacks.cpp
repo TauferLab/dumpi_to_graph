@@ -21,12 +21,12 @@ int cb_MPI_Recv(const dumpi_recv *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->get_papi_flag()
+  bool papi = trace->get_papi_flag();
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
   else{
-    validate_dumpi_event(prm, cpu, wall)
+    validate_dumpi_event(prm, cpu, wall);
   }
   dumpi_recv event = *prm;
   dumpi_time cpu_time = *cpu;
@@ -68,12 +68,12 @@ int cb_MPI_Send(const dumpi_send *prm,
 {
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
-  bool papi = trace->get_papi_flag()
+  bool papi = trace->get_papi_flag();
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
   else{
-    validate_dumpi_event(prm, cpu, wall)
+    validate_dumpi_event(prm, cpu, wall);
   }
   dumpi_send event = *prm;
   dumpi_time cpu_time = *cpu;
