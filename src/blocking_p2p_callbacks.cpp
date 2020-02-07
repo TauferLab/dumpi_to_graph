@@ -50,6 +50,9 @@ int cb_MPI_Recv(const dumpi_recv *prm,
 
   // Associate this receive event with a timestamp
   trace->register_dumpi_timestamp( wall_time );
+  if(papi){
+    trace->register_papi_struct(counters);
+  }
 
   // Associate this receive event with the MPI function call that generated it
   trace->update_call_idx( "MPI_Recv" );
@@ -91,6 +94,9 @@ int cb_MPI_Send(const dumpi_send *prm,
   
   // Associate this send event with a timestamp
   trace->register_dumpi_timestamp( wall_time );
+  if(papi){
+    trace->register_papi_struct(counters);
+  }
   
   // Associate this send event with the MPI function call that generated it
   trace->update_call_idx( "MPI_Send" );

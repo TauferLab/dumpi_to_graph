@@ -71,6 +71,9 @@ int cb_MPI_Reduce(const dumpi_reduce *prm,
   // Add the vertex to the event sequence
   trace->register_barrier( event_vertex_id );
   trace->register_dumpi_timestamp( wall_time );
+  if(papi){
+    trace->register_papi_struct(counters);
+  }
   
   // Associate this barrier event with the MPI function call that generated it
   trace->update_call_idx( "MPI_Reduce" );
@@ -106,6 +109,9 @@ int cb_MPI_Allreduce(const dumpi_allreduce *prm,
   // Add the vertex to the event sequence
   trace->register_barrier( event_vertex_id );
   trace->register_dumpi_timestamp( wall_time );
+  if(papi){
+    trace->register_papi_struct(counters);
+  }
   
   // Associate this barrier event with the MPI function call that generated it
   trace->update_call_idx( "MPI_Allreduce" );
@@ -141,6 +147,9 @@ int cb_MPI_Alltoall(const dumpi_alltoall *prm,
   // Add the vertex to the event sequence
   trace->register_barrier( event_vertex_id );
   trace->register_dumpi_timestamp( wall_time );
+  if(papi){
+    trace->register_papi_struct(counters);
+  }
   
   // Associate this barrier event with the MPI function call that generated it
   trace->update_call_idx( "MPI_Alltoall" );
@@ -177,6 +186,9 @@ int cb_MPI_Alltoallv(const dumpi_alltoallv *prm,
   // Add the vertex to the event sequence
   trace->register_barrier( event_vertex_id );
   trace->register_dumpi_timestamp( wall_time );
+  if(papi){
+    trace->register_papi_struct(counters);
+  }
 
   // Associate this barrier event with the MPI function call that generated it
   trace->update_call_idx( "MPI_Alltoallv" );

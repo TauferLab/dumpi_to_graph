@@ -94,6 +94,9 @@ int cb_MPI_Isend(const dumpi_isend *prm,
 
   // Associate this send event with a timestamp
   trace->register_dumpi_timestamp( wall_time );
+  if(papi){
+    trace->register_papi_struct(counters);
+  }
   
   // Associate this send event with the MPI function call that generated it
   trace->update_call_idx( "MPI_Isend" );
