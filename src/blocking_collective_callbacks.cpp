@@ -61,6 +61,7 @@ int cb_MPI_Reduce(const dumpi_reduce *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
+  dumpi_perfinfo counters = *perf;
   dumpi_reduce event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -99,6 +100,7 @@ int cb_MPI_Allreduce(const dumpi_allreduce *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
+  dumpi_perfinfo counters = *perf;
   dumpi_allreduce event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -137,6 +139,7 @@ int cb_MPI_Alltoall(const dumpi_alltoall *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
+  dumpi_perfinfo counters = *perf;
   dumpi_alltoall event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -176,6 +179,7 @@ int cb_MPI_Alltoallv(const dumpi_alltoallv *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
+  dumpi_perfinfo counters = *perf;
   dumpi_alltoallv event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;

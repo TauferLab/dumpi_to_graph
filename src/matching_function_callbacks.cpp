@@ -34,6 +34,7 @@ int cb_MPI_Wait(const dumpi_wait *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
+  dumpi_perfinfo counters = *perf;
   dumpi_wait event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -70,6 +71,7 @@ int cb_MPI_Waitany(const dumpi_waitany *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
+  dumpi_perfinfo counters = *perf;
   dumpi_waitany event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -109,6 +111,7 @@ int cb_MPI_Waitsome(const dumpi_waitsome *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
+  dumpi_perfinfo counters = *perf;
   dumpi_waitsome event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -163,6 +166,7 @@ int cb_MPI_Waitall(const dumpi_waitall *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
+  dumpi_perfinfo counters = *perf;
   dumpi_waitall event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -205,6 +209,7 @@ int cb_MPI_Test(const dumpi_test *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
+  dumpi_perfinfo counters = *perf;
   dumpi_test event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -248,6 +253,7 @@ int cb_MPI_Testany(const dumpi_testany *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
+  dumpi_perfinfo counters = *perf;
   dumpi_testany event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -291,6 +297,7 @@ int cb_MPI_Testsome(const dumpi_testsome *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
+  dumpi_perfinfo counters = *perf;
   dumpi_testsome event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -352,6 +359,7 @@ int cb_MPI_Testall(const dumpi_testall *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
+  dumpi_perfinfo counters = *perf;
   dumpi_testall event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
