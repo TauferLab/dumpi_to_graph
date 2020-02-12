@@ -34,13 +34,6 @@ int cb_MPI_Wait(const dumpi_wait *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
-  dumpi_perfinfo counters; 
-  if(papi){
-    counters = *perf;
-  }
-  else{
-    counters = NULL;
-  }
   dumpi_wait event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -55,7 +48,7 @@ int cb_MPI_Wait(const dumpi_wait *prm,
                            status_ptr, 
                            cpu_time, 
                            wall_time, 
-                           counters,
+                           perf,
                            "MPI_Wait" );
 
   // Return OK

@@ -464,7 +464,7 @@ void Trace::complete_irecv_request( Request request,
 
     //Associate this receive event with papi struct if necessary
     if(ctrs != nullptr){
-      trace->register_papi_struct(*ctrs);
+      this->register_papi_struct(*ctrs);
     }
 
     // Associate this receive event with the MPI matching function call that
