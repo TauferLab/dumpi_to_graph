@@ -322,5 +322,5 @@ std::string stringify_perfinfo(dumpi_perfinfo counters){
     oss << counters.counter_tag[i] << " " << counters.outvalue[i];
   }
   oss << std::endl;
-  return oss.str;
+  return oss.str();
 }
