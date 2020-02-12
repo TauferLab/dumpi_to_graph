@@ -363,7 +363,7 @@ void Trace::complete_request( int request_id,
                               const dumpi_status* status_ptr,
                               const dumpi_time cpu_time,
                               const dumpi_time wall_time,
-                              const dumpi_perfinfo ctrs,
+                              const dumpi_perfinfo *ctrs,
                               std::string matching_fn_call )
 {
   // Generally speaking, a class of MPI functions called "matching functions"
@@ -442,7 +442,7 @@ void Trace::complete_irecv_request( Request request,
                                     const dumpi_status* status_ptr,
                                     const dumpi_time cpu_time,
                                     const dumpi_time wall_time,
-                                    const dumpi_perfinfo ctrs,
+                                    const dumpi_perfinfo *ctrs,
                                     std::string matching_fn_call )
 {
   // FIXME: We basically assume that cancelled irecv requests are always 
@@ -464,7 +464,7 @@ void Trace::complete_irecv_request( Request request,
 
     //Associate this receive event with papi struct if necessary
     if(ctrs != nullptr){
-      trace->register_papi_struct(ctrs);
+      trace->register_papi_struct(*ctrs);
     }
 
     // Associate this receive event with the MPI matching function call that

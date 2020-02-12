@@ -77,7 +77,7 @@ public:
                          const dumpi_status* status_ptr,
                          const dumpi_time cpu_time,
                          const dumpi_time wall_time,
-                         const dumpi_perfinfo ctrs,
+                         const dumpi_perfinfo *ctrs,
                          std::string matching_fn_call );
 
   void complete_isend_request( Request request );
@@ -85,7 +85,7 @@ public:
                                const dumpi_status* status_ptr,
                                const dumpi_time cpu_time,
                                const dumpi_time wall_time,
-                               const dumpi_perfinfo ctrs,
+                               const dumpi_perfinfo *ctrs,
                                std::string matching_fn_call );
 
   void apply_vertex_id_offset( size_t offset );
