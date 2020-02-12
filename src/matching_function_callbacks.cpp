@@ -34,7 +34,13 @@ int cb_MPI_Wait(const dumpi_wait *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
-  dumpi_perfinfo counters = *perf;
+  dumpi_perfinfo counters; 
+  if(papi){
+    counters = *perf;
+  }
+  else{
+    counters = NULL;
+  }
   dumpi_wait event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -49,6 +55,7 @@ int cb_MPI_Wait(const dumpi_wait *prm,
                            status_ptr, 
                            cpu_time, 
                            wall_time, 
+                           counters,
                            "MPI_Wait" );
 
   // Return OK
@@ -71,7 +78,13 @@ int cb_MPI_Waitany(const dumpi_waitany *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
-  dumpi_perfinfo counters = *perf;
+  dumpi_perfinfo counters; 
+  if(papi){
+    counters = *perf;
+  }
+  else{
+    counters = NULL;
+  }
   dumpi_waitany event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -89,6 +102,7 @@ int cb_MPI_Waitany(const dumpi_waitany *prm,
                            status_ptr, 
                            cpu_time, 
                            wall_time,
+                           counters,
                            "MPI_Waitany" );
   
   // Return OK
@@ -111,7 +125,13 @@ int cb_MPI_Waitsome(const dumpi_waitsome *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
-  dumpi_perfinfo counters = *perf;
+  dumpi_perfinfo counters; 
+  if(papi){
+    counters = *perf;
+  }
+  else{
+    counters = NULL;
+  }
   dumpi_waitsome event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -140,6 +160,7 @@ int cb_MPI_Waitsome(const dumpi_waitsome *prm,
                                statuses_ptr, 
                                cpu_time, 
                                wall_time,
+                               counters,
                                "MPI_Waitsome" ); 
       statuses_ptr++;
     }
@@ -166,7 +187,13 @@ int cb_MPI_Waitall(const dumpi_waitall *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
-  dumpi_perfinfo counters = *perf;
+  dumpi_perfinfo counters; 
+  if(papi){
+    counters = *perf;
+  }
+  else{
+    counters = NULL;
+  }
   dumpi_waitall event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -184,6 +211,7 @@ int cb_MPI_Waitall(const dumpi_waitall *prm,
                              statuses_ptr, 
                              cpu_time, 
                              wall_time,
+                             counters,
                              "MPI_Waitall" );
     statuses_ptr++;
     requests_ptr++;
@@ -209,7 +237,13 @@ int cb_MPI_Test(const dumpi_test *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
-  dumpi_perfinfo counters = *perf;
+  dumpi_perfinfo counters; 
+  if(papi){
+    counters = *perf;
+  }
+  else{
+    counters = NULL;
+  }
   dumpi_test event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -231,6 +265,7 @@ int cb_MPI_Test(const dumpi_test *prm,
                            status_ptr, 
                            cpu_time, 
                            wall_time,
+                           counters,
                            "MPI_Test" );
 
   // Return OK
@@ -253,7 +288,13 @@ int cb_MPI_Testany(const dumpi_testany *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
-  dumpi_perfinfo counters = *perf;
+  dumpi_perfinfo counters; 
+  if(papi){
+    counters = *perf;
+  }
+  else{
+    counters = NULL;
+  }
   dumpi_testany event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -275,6 +316,7 @@ int cb_MPI_Testany(const dumpi_testany *prm,
                            status_ptr, 
                            cpu_time, 
                            wall_time,
+                           counters,
                            "MPI_Testany" );
 
   // Return OK
@@ -297,7 +339,14 @@ int cb_MPI_Testsome(const dumpi_testsome *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
-  dumpi_perfinfo counters = *perf;
+  dumpi_perfinfo counters; 
+  if(papi){
+    counters = *perf;
+  }
+  else{
+    counters = NULL;
+  }
+  
   dumpi_testsome event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -333,6 +382,7 @@ int cb_MPI_Testsome(const dumpi_testsome *prm,
                                statuses_ptr, 
                                cpu_time, 
                                wall_time,
+                               counters,
                                "MPI_Testsome" ); 
       statuses_ptr++;
     }
@@ -359,7 +409,13 @@ int cb_MPI_Testall(const dumpi_testall *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
-  dumpi_perfinfo counters = *perf;
+  dumpi_perfinfo counters; 
+  if(papi){
+    counters = *perf;
+  }
+  else{
+    counters = NULL;
+  }
   dumpi_testall event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -384,6 +440,7 @@ int cb_MPI_Testall(const dumpi_testall *prm,
                              statuses_ptr, 
                              cpu_time, 
                              wall_time,
+                             counters,
                              "MPI_Testall" );
     statuses_ptr++;
     requests_ptr++;

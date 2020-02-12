@@ -23,7 +23,7 @@ int cb_MPI_Barrier(const dumpi_barrier *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
-  dumpi_perfinfo counters = *perf;
+  dumpi_perfinfo counters;
   dumpi_barrier event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -35,6 +35,7 @@ int cb_MPI_Barrier(const dumpi_barrier *prm,
   trace->register_barrier( event_vertex_id );
   trace->register_dumpi_timestamp( wall_time );
   if(papi){
+    counters = *perf;
     trace->register_papi_struct(counters);
   }
   // Associate this barrier event with the MPI function call that generated it
@@ -61,7 +62,7 @@ int cb_MPI_Reduce(const dumpi_reduce *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
-  dumpi_perfinfo counters = *perf;
+  dumpi_perfinfo counters;
   dumpi_reduce event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -73,6 +74,7 @@ int cb_MPI_Reduce(const dumpi_reduce *prm,
   trace->register_barrier( event_vertex_id );
   trace->register_dumpi_timestamp( wall_time );
   if(papi){
+    counters = *perf;
     trace->register_papi_struct(counters);
   }
   
@@ -100,7 +102,7 @@ int cb_MPI_Allreduce(const dumpi_allreduce *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
-  dumpi_perfinfo counters = *perf;
+  dumpi_perfinfo counters;
   dumpi_allreduce event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -112,6 +114,7 @@ int cb_MPI_Allreduce(const dumpi_allreduce *prm,
   trace->register_barrier( event_vertex_id );
   trace->register_dumpi_timestamp( wall_time );
   if(papi){
+    counters = *perf;
     trace->register_papi_struct(counters);
   }
   
@@ -139,7 +142,7 @@ int cb_MPI_Alltoall(const dumpi_alltoall *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
-  dumpi_perfinfo counters = *perf;
+  dumpi_perfinfo counters;
   dumpi_alltoall event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -151,6 +154,7 @@ int cb_MPI_Alltoall(const dumpi_alltoall *prm,
   trace->register_barrier( event_vertex_id );
   trace->register_dumpi_timestamp( wall_time );
   if(papi){
+    counters = *perf;
     trace->register_papi_struct(counters);
   }
   
@@ -179,7 +183,7 @@ int cb_MPI_Alltoallv(const dumpi_alltoallv *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
-  dumpi_perfinfo counters = *perf;
+  dumpi_perfinfo counters;
   dumpi_alltoallv event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -191,6 +195,7 @@ int cb_MPI_Alltoallv(const dumpi_alltoallv *prm,
   trace->register_barrier( event_vertex_id );
   trace->register_dumpi_timestamp( wall_time );
   if(papi){
+    counters = *perf;
     trace->register_papi_struct(counters);
   }
 

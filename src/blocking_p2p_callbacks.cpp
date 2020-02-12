@@ -28,7 +28,7 @@ int cb_MPI_Recv(const dumpi_recv *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
-  dumpi_perfinfo counters = *perf;
+  
   dumpi_recv event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -52,6 +52,7 @@ int cb_MPI_Recv(const dumpi_recv *prm,
   // Associate this receive event with a timestamp
   trace->register_dumpi_timestamp( wall_time );
   if(papi){
+    dumpi_perfinfo counters = *perf;
     trace->register_papi_struct(counters);
   }
 
@@ -79,7 +80,7 @@ int cb_MPI_Send(const dumpi_send *prm,
   else{
     validate_dumpi_event(prm, cpu, wall);
   }
-  dumpi_perfinfo counters = *perf;
+  
   dumpi_send event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -97,6 +98,7 @@ int cb_MPI_Send(const dumpi_send *prm,
   // Associate this send event with a timestamp
   trace->register_dumpi_timestamp( wall_time );
   if(papi){
+    dumpi_perfinfo counters = *perf;
     trace->register_papi_struct(counters);
   }
   
