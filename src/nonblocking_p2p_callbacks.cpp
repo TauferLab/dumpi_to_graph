@@ -30,7 +30,7 @@ int cb_MPI_Irecv(const dumpi_irecv *prm,
   }
   dumpi_perfinfo counters;
   if(papi){
-    counters = *perf;
+    dumpi_perfinfo counters = *perf;
   }
   dumpi_irecv event = *prm;
   dumpi_time cpu_time = *cpu;

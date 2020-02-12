@@ -8,6 +8,7 @@
 
 // DUMPI
 #include "dumpi/common/argtypes.h" 
+#include "dumpi/common/types.h"
 
 // Boost
 #include <boost/functional/hash.hpp> 
@@ -85,5 +86,6 @@ struct pair_hash
   }
 };
 
+std::string stringify_perfinfo(dumpi_perfinfo counters);
 
 #endif // D2G_UTILITIES

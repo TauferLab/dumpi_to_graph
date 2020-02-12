@@ -154,7 +154,7 @@ private:
   std::vector<double> wall_time_seq;
   
   //Tracking papi perfcounter structs
-  std::vector<dumpi_perfinfo> counter_sets;
+  std::vector<std::string> counter_sets;
   // For send and recv vertices, there is an associated channel
   std::unordered_map<size_t, Channel> vertex_id_to_channel;
 

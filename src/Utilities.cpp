@@ -315,3 +315,12 @@ void validate_dumpi_event( dumpi_testany* event_ptr,
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+std::string stringify_perfinfo(dumpi_perfinfo counters){
+  std::ostringstream oss; 
+  for (size_t i = 0; i < counters.count; i++){
+    oss << counters.counter_tag[i] << " " << counters.outvalue[i];
+  }
+  oss << std::endl;
+  return oss.str;
+}
