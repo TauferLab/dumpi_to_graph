@@ -943,7 +943,7 @@ void EventGraph::merge()
     if ( this->config.has_csmpi() ) {
       world.send( 0, callstack_map_tag, this->vertex_id_to_callstack );
     }
-    fprintf(stderr, "%d flag\n", this->config.get_papi_flag);
+    fprintf(stderr, "%d flag\n", this->config.get_papi_flag());
     if ( this->config.get_papi_flag() ) {
       world.send(0, papi_map_tag, this->vertex_id_to_papi );
     }
