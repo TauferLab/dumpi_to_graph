@@ -394,6 +394,9 @@ void EventGraph::merge_trace_data()
     auto event_seq = kvp.second->get_event_seq();
     auto wall_time_seq = kvp.second->get_wall_time_seq(); 
     auto fn_call_seq = kvp.second->get_mpi_fn_seq();
+    if(this->config.has_papi()){
+      auto perf_counter_seq = kvp.second->get_perf_counter_seq();
+    }
     size_t n_events = event_seq.size();
     size_t initial_vertex_id = kvp.second->get_initial_vertex_id();
     for ( int i=0; i<n_events; ++i ) {
@@ -407,6 +410,10 @@ void EventGraph::merge_trace_data()
       this->vertex_id_to_wall_time.insert( { vertex_id, wall_time } );
       this->vertex_id_to_pid.insert( { vertex_id, pid } );
       this->vertex_id_to_fn_call.insert( { vertex_id, fn_idx_pair } );
+      if(this->config.has_papi()){
+        std::string perf_counter = perf_counter_seq[i];
+        this->vertex_id_to_papi.insert( {vertex_id, perf_counter } );
+      }
     }
   }
 
@@ -838,6 +845,7 @@ void EventGraph::merge()
   int wall_time_map_tag      = 3;
   int pid_map_tag            = 4;
   int callstack_map_tag      = 5;
+  int papi_map_tag           = 53326;
   int message_order_edge_tag = 17;
   int program_order_edge_tag = 36;
 
@@ -847,6 +855,7 @@ void EventGraph::merge()
   std::unordered_map<size_t,uint8_t> vertex_id_to_event_type = this->vertex_id_to_event_type;
   std::unordered_map<size_t,double> vertex_id_to_wall_time = this->vertex_id_to_wall_time;
   std::unordered_map<size_t,int> vertex_id_to_pid = this->vertex_id_to_pid;
+  std::unordered_map<size_t,std::string> vertex_id_to_papi = this->vertex_id_to_papi;
   std::unordered_map<size_t,std::string> vertex_id_to_callstack = this->vertex_id_to_callstack;
 
   std::vector<std::pair<size_t,size_t>> message_order_edges = this->message_order_edges;
@@ -868,6 +877,7 @@ void EventGraph::merge()
       std::unordered_map<size_t,uint8_t> event_type_map_recv_buffer;
       std::unordered_map<size_t,double> wall_time_map_recv_buffer;
       std::unordered_map<size_t,int> pid_map_recv_buffer;
+      std::unordered_map<size_t,std::string> papi_map_recv_buffer;
       std::unordered_map<size_t,std::string> callstack_map_recv_buffer;
       // Receive logical timestamps
       world.recv( i, lts_map_tag, lts_map_recv_buffer );
@@ -898,6 +908,14 @@ void EventGraph::merge()
         } 
       }
 
+      if ( this->config.has_papi() ) {
+        //Receive PAPI counters
+        world.recv( i, papi_map_tag, papi_map_recv_buffer );
+        for( auto kvp : papi_map_recv_buffer ) {
+          vertex_id_to_papi.insert( kvp );
+        }
+      }
+
       // A common recv buffer for edges
       std::vector<std::pair<size_t,size_t>> edges_recv_buffer;
       
@@ -925,6 +943,9 @@ void EventGraph::merge()
     world.send( 0, pid_map_tag, this->vertex_id_to_pid );
     if ( this->config.has_csmpi() ) {
       world.send( 0, callstack_map_tag, this->vertex_id_to_callstack );
+    }
+    if ( this->config.has_papi() ) {
+      world.send(0, papi_map_tag, this->vertex_id_to_papi );
     }
     // Send edges
     world.send( 0, message_order_edge_tag, this->message_order_edges );
@@ -958,6 +979,7 @@ void EventGraph::merge()
     const char wtime_attr_name[16]      = "wall_time";
     const char pid_attr_name[16]        = "process_id";
     const char callstack_attr_name[16]  = "callstack";
+    const char papi_attr_name[16]       = "PAPI_ctrs";
 
     for ( auto vid : vertex_ids ) {
 
@@ -973,6 +995,10 @@ void EventGraph::merge()
       if ( this->config.has_csmpi() ) {
         callstack = vertex_id_to_callstack[vid];
       }
+      std::string papi_counters;
+      if ( this->config.has_papi() ) {
+        papi_counters = vertex_id_to_papi[vid];
+      }
 
       // Set event type vertex attribute
       igraph_rc = igraph_cattribute_VAS_set( &graph, event_type_attr_name, vid, event_type_str.c_str() );
@@ -985,6 +1011,10 @@ void EventGraph::merge()
       if ( this->config.has_csmpi() ) {
         // Set callstack vertex attribute
         igraph_rc = igraph_cattribute_VAS_set( &graph, callstack_attr_name, vid, callstack.c_str() );
+      }
+      if ( this->config.has_papi() ) {
+        //Set PAPI counters vertex attribute
+        igraph_rc = igraph_cattribute_VAS_set( &graph, papi_attr_name, vid, papi_counters.c_str() );
       }
     }
 #ifdef REPORT_PROGRESS

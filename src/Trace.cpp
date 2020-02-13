@@ -577,6 +577,11 @@ std::vector<double> Trace::get_wall_time_seq() const
   return this->wall_time_seq;
 }
 
+std::vector<std::string> Trace::get_perf_counter_seq const
+{
+  return this->counter_sets;
+}
+
 // Returns the sequence of (MPI_Function, function_call_index) that generated
 // each event. This is used to associate other non-DUMPI trace data (e.g., 
 // callstacks) to events in the event sequence
