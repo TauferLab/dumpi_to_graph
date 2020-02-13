@@ -394,7 +394,7 @@ void EventGraph::merge_trace_data()
     auto event_seq = kvp.second->get_event_seq();
     auto wall_time_seq = kvp.second->get_wall_time_seq(); 
     auto fn_call_seq = kvp.second->get_mpi_fn_seq();
-    if(this->config.has_papi()){
+    if(this->config.get_papi_flag()){
       auto perf_counter_seq = kvp.second->get_perf_counter_seq();
     }
     size_t n_events = event_seq.size();
@@ -410,7 +410,7 @@ void EventGraph::merge_trace_data()
       this->vertex_id_to_wall_time.insert( { vertex_id, wall_time } );
       this->vertex_id_to_pid.insert( { vertex_id, pid } );
       this->vertex_id_to_fn_call.insert( { vertex_id, fn_idx_pair } );
-      if(this->config.has_papi()){
+      if(this->config.get_papi_flag()){
         std::string perf_counter = perf_counter_seq[i];
         this->vertex_id_to_papi.insert( {vertex_id, perf_counter } );
       }
@@ -908,7 +908,7 @@ void EventGraph::merge()
         } 
       }
 
-      if ( this->config.has_papi() ) {
+      if ( this->config.get_papi_flag() ) {
         //Receive PAPI counters
         world.recv( i, papi_map_tag, papi_map_recv_buffer );
         for( auto kvp : papi_map_recv_buffer ) {
@@ -944,7 +944,7 @@ void EventGraph::merge()
     if ( this->config.has_csmpi() ) {
       world.send( 0, callstack_map_tag, this->vertex_id_to_callstack );
     }
-    if ( this->config.has_papi() ) {
+    if ( this->config.get_papi_flag() ) {
       world.send(0, papi_map_tag, this->vertex_id_to_papi );
     }
     // Send edges
@@ -996,7 +996,7 @@ void EventGraph::merge()
         callstack = vertex_id_to_callstack[vid];
       }
       std::string papi_counters;
-      if ( this->config.has_papi() ) {
+      if ( this->config.get_papi_flag() ) {
         papi_counters = vertex_id_to_papi[vid];
       }
 
@@ -1012,7 +1012,7 @@ void EventGraph::merge()
         // Set callstack vertex attribute
         igraph_rc = igraph_cattribute_VAS_set( &graph, callstack_attr_name, vid, callstack.c_str() );
       }
-      if ( this->config.has_papi() ) {
+      if ( this->config.get_papi_flag() ) {
         //Set PAPI counters vertex attribute
         igraph_rc = igraph_cattribute_VAS_set( &graph, papi_attr_name, vid, papi_counters.c_str() );
       }
