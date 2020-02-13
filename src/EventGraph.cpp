@@ -844,7 +844,7 @@ void EventGraph::merge()
   int wall_time_map_tag      = 3;
   int pid_map_tag            = 4;
   int callstack_map_tag      = 5;
-  int papi_map_tag           = 53326;
+  int papi_map_tag           = 433;
   int message_order_edge_tag = 17;
   int program_order_edge_tag = 36;
 
