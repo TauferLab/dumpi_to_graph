@@ -16,9 +16,15 @@ int cb_MPI_Cancel(const dumpi_cancel *prm,
                   const dumpi_perfinfo *perf, 
                   void *uarg) 
 {
-  // Check that event data is OK
-  validate_dumpi_event(prm, cpu, wall, perf);
   Trace* trace = (Trace*) uarg;
+  // Check that event data is OK 
+  bool papi = trace->get_papi_flag();
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall);
+  }
   dumpi_cancel event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -38,9 +44,15 @@ int cb_MPI_Request_free(const dumpi_request_free *prm,
                         const dumpi_perfinfo *perf, 
                         void *uarg) 
 {
-  // Check that event data is OK
-  validate_dumpi_event(prm, cpu, wall, perf);
   Trace* trace = (Trace*) uarg;
+  // Check that event data is OK 
+  bool papi = trace->get_papi_flag();
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall);
+  }
   dumpi_request_free event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;

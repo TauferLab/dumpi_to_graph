@@ -59,7 +59,9 @@ public:
                             int key );
 
   void register_initial_dumpi_timestamp( const dumpi_time& wall_time ); 
-  void register_dumpi_timestamp( const dumpi_time& wall_time ); 
+  void register_dumpi_timestamp( const dumpi_time& wall_time );
+
+  void register_papi_struct(const dumpi_perfinfo& counters);
 
   void register_request( int request_id, const Request& request );
 
@@ -75,6 +77,7 @@ public:
                          const dumpi_status* status_ptr,
                          const dumpi_time cpu_time,
                          const dumpi_time wall_time,
+                         const dumpi_perfinfo *ctrs,
                          std::string matching_fn_call );
 
   void complete_isend_request( Request request );
@@ -82,6 +85,7 @@ public:
                                const dumpi_status* status_ptr,
                                const dumpi_time cpu_time,
                                const dumpi_time wall_time,
+                               const dumpi_perfinfo *ctrs,
                                std::string matching_fn_call );
 
   void apply_vertex_id_offset( size_t offset );
@@ -96,10 +100,12 @@ public:
   void report_channel_to_send_seq();
   void report_channel_to_recv_seq();
 
+  bool get_papi_flag() const {return config.get_papi_flag();};
+
 private:
 
   Configuration config;
-
+  
   std::string trace_dir;
 
   // Number of ranks in the global communicator of the traced run
@@ -146,7 +152,9 @@ private:
   // Tracking wall-time timestamps
   double initial_timestamp; 
   std::vector<double> wall_time_seq;
-
+  
+  //Tracking papi perfcounter structs
+  std::vector<dumpi_perfinfo> counter_sets;
   // For send and recv vertices, there is an associated channel
   std::unordered_map<size_t, Channel> vertex_id_to_channel;
 

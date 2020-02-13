@@ -19,9 +19,16 @@ int cb_MPI_Recv(const dumpi_recv *prm,
                 const dumpi_perfinfo *perf, 
                 void *uarg) 
 {
-  // Check that event data is OK 
-  validate_dumpi_event(prm, cpu, wall, perf);
   Trace* trace = (Trace*) uarg;
+  // Check that event data is OK 
+  bool papi = trace->get_papi_flag();
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall);
+  }
+  
   dumpi_recv event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -44,6 +51,10 @@ int cb_MPI_Recv(const dumpi_recv *prm,
 
   // Associate this receive event with a timestamp
   trace->register_dumpi_timestamp( wall_time );
+  if(papi){
+    dumpi_perfinfo counters = *perf;
+    trace->register_papi_struct(counters);
+  }
 
   // Associate this receive event with the MPI function call that generated it
   trace->update_call_idx( "MPI_Recv" );
@@ -60,9 +71,16 @@ int cb_MPI_Send(const dumpi_send *prm,
                 const dumpi_perfinfo *perf, 
                 void *uarg) 
 {
-  // Check that event data is OK
-  validate_dumpi_event(prm, cpu, wall, perf);
   Trace* trace = (Trace*) uarg;
+  // Check that event data is OK 
+  bool papi = trace->get_papi_flag();
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall);
+  }
+  
   dumpi_send event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
@@ -79,6 +97,10 @@ int cb_MPI_Send(const dumpi_send *prm,
   
   // Associate this send event with a timestamp
   trace->register_dumpi_timestamp( wall_time );
+  if(papi){
+    dumpi_perfinfo counters = *perf;
+    trace->register_papi_struct(counters);
+  }
   
   // Associate this send event with the MPI function call that generated it
   trace->update_call_idx( "MPI_Send" );

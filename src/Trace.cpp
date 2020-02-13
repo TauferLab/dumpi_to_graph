@@ -133,6 +133,12 @@ void Trace::register_dumpi_timestamp( const dumpi_time& wall_time )
   this->wall_time_seq.push_back( timestamp );
 }
 
+void Trace::register_papi_struct(const dumpi_perfinfo& counters)
+{
+  printf("Registered PAPI\n");
+  this->counter_sets.push_back(counters);
+}
+
 // Helper for updating channel_to_recv_seq and vertex_id_to_channel
 void Trace::register_recv( const Channel& channel, size_t recv_vertex_id )
 {
@@ -357,6 +363,7 @@ void Trace::complete_request( int request_id,
                               const dumpi_status* status_ptr,
                               const dumpi_time cpu_time,
                               const dumpi_time wall_time,
+                              const dumpi_perfinfo *ctrs,
                               std::string matching_fn_call )
 {
   // Generally speaking, a class of MPI functions called "matching functions"
@@ -398,6 +405,7 @@ void Trace::complete_request( int request_id,
                             status_ptr, 
                             cpu_time, 
                             wall_time,
+                            ctrs,
                             matching_fn_call );
   }
   // Case 3+: FIXME: We don't handle persistent communication requests or 
@@ -434,6 +442,7 @@ void Trace::complete_irecv_request( Request request,
                                     const dumpi_status* status_ptr,
                                     const dumpi_time cpu_time,
                                     const dumpi_time wall_time,
+                                    const dumpi_perfinfo *ctrs,
                                     std::string matching_fn_call )
 {
   // FIXME: We basically assume that cancelled irecv requests are always 
@@ -452,6 +461,11 @@ void Trace::complete_irecv_request( Request request,
 
     // Associate this receive event with a timestamp
     this->register_dumpi_timestamp( wall_time );
+
+    //Associate this receive event with papi struct if necessary
+    if(ctrs != nullptr){
+      this->register_papi_struct(*ctrs);
+    }
 
     // Associate this receive event with the MPI matching function call that
     // generated it
