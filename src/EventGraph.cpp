@@ -394,9 +394,8 @@ void EventGraph::merge_trace_data()
     auto event_seq = kvp.second->get_event_seq();
     auto wall_time_seq = kvp.second->get_wall_time_seq(); 
     auto fn_call_seq = kvp.second->get_mpi_fn_seq();
-    if(this->config.get_papi_flag()){
-      auto perf_counter_seq = kvp.second->get_perf_counter_seq();
-    }
+    auto perf_counter_seq = kvp.second->get_perf_counter_seq();
+    
     size_t n_events = event_seq.size();
     size_t initial_vertex_id = kvp.second->get_initial_vertex_id();
     for ( int i=0; i<n_events; ++i ) {
