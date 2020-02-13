@@ -944,6 +944,7 @@ void EventGraph::merge()
       world.send( 0, callstack_map_tag, this->vertex_id_to_callstack );
     }
     if ( this->config.get_papi_flag() ) {
+      fprintf(stderr, "Trying to send papi\n");
       world.send(0, papi_map_tag, this->vertex_id_to_papi );
     }
     // Send edges
@@ -1012,6 +1013,7 @@ void EventGraph::merge()
         igraph_rc = igraph_cattribute_VAS_set( &graph, callstack_attr_name, vid, callstack.c_str() );
       }
       if ( this->config.get_papi_flag() ) {
+        fprintf(stderr, "Trying to set papi_attr\n");
         //Set PAPI counters vertex attribute
         igraph_rc = igraph_cattribute_VAS_set( &graph, papi_attr_name, vid, papi_counters.c_str() );
       }
