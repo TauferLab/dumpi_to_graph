@@ -104,6 +104,8 @@ private:
   std::unordered_map<size_t,double> vertex_id_to_wall_time;
   std::unordered_map<size_t,int> vertex_id_to_pid; 
 
+  std::unordered_map<size_t,std::string> vertex_id_to_papi;
+
   std::unordered_map<size_t,std::pair<std::string,size_t>> vertex_id_to_fn_call;
   std::unordered_map<size_t,std::string> vertex_id_to_callstack;
 

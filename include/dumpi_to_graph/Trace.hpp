@@ -41,6 +41,7 @@ public:
   size_t get_vertex_id_offset() const;
   std::vector<uint8_t> get_event_seq() const;
   std::vector<double> get_wall_time_seq() const;
+  std::vector<std::string> get_perf_counter_seq() const;
   std::unordered_map<size_t,Channel> get_vertex_id_to_channel() const;
 
   CommunicatorManager& get_comm_manager();
@@ -154,7 +155,8 @@ private:
   std::vector<double> wall_time_seq;
   
   //Tracking papi perfcounter structs
-  std::vector<dumpi_perfinfo> counter_sets;
+  std::vector<std::string> counter_sets;
+
   // For send and recv vertices, there is an associated channel
   std::unordered_map<size_t, Channel> vertex_id_to_channel;
 

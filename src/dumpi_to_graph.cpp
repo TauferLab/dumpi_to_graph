@@ -39,7 +39,6 @@ int main(int argc, char** argv)
   } else {
     broadcast_config( config );
   }
-
   // Ensure that all dumpi_to_graph processes have the Configuration 
   mpi_rc = MPI_Barrier(MPI_COMM_WORLD);
 

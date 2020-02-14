@@ -30,12 +30,12 @@ int cb_MPI_Irecv(const dumpi_irecv *prm,
   }
   dumpi_perfinfo counters;
   if(papi){
-    counters = *perf;
+    dumpi_perfinfo counters = *perf;
   }
   dumpi_irecv event = *prm;
   dumpi_time cpu_time = *cpu;
   dumpi_time wall_time = *wall;
-  
+
   // We might not have the whole channel at the time of calling MPI_Irecv, but
   // construct one with the parts we're guaranteed to have, destination rank
   // and communicator ID
@@ -102,8 +102,7 @@ int cb_MPI_Isend(const dumpi_isend *prm,
   if(papi){
     counters = *perf;
     trace->register_papi_struct(counters);
-  }
-  
+  } 
   // Associate this send event with the MPI function call that generated it
   trace->update_call_idx( "MPI_Isend" );
   trace->associate_event_with_call( "MPI_Isend", event_vertex_id );

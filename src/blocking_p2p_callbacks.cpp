@@ -50,7 +50,7 @@ int cb_MPI_Recv(const dumpi_recv *prm,
   trace->register_recv( channel, event_vertex_id );
 
   // Associate this receive event with a timestamp
-  trace->register_dumpi_timestamp( wall_time );
+  trace->register_dumpi_timestamp( wall_time );  
   if(papi){
     dumpi_perfinfo counters = *perf;
     trace->register_papi_struct(counters);
