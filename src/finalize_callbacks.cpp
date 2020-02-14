@@ -15,6 +15,8 @@ int cb_MPI_Finalize(const dumpi_finalize *prm,
                     const dumpi_perfinfo *perf, 
                     void *uarg) 
 {
+  //Check that event data is OK
+  Trace* trace = (Trace*) uarg;
   bool papi = trace->get_papi_flag();
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);

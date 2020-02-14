@@ -136,7 +136,6 @@ void Trace::register_dumpi_timestamp( const dumpi_time& wall_time )
 
 void Trace::register_papi_struct(const dumpi_perfinfo& counters)
 {
-  printf("Registered PAPI\n");
   this->counter_sets.push_back(stringify_perfinfo(counters));
 }
 

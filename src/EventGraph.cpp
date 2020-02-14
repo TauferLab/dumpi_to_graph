@@ -410,12 +410,13 @@ void EventGraph::merge_trace_data()
       this->vertex_id_to_pid.insert( { vertex_id, pid } );
       this->vertex_id_to_fn_call.insert( { vertex_id, fn_idx_pair } );
       if(this->config.get_papi_flag()){
+        fprintf(stderr, "%d, %d\n", n_events, perf_counter_seq.size());
         std::string perf_counter = perf_counter_seq[i];
         this->vertex_id_to_papi.insert( {vertex_id, perf_counter } );
       }
     }
   }
-
+  
   // Merge data from CSMPI traces if available
   if ( this->config.has_csmpi() ) {
 #ifdef REPORT_PROGRESS
@@ -997,6 +998,8 @@ void EventGraph::merge()
       }
       std::string papi_counters;
       if ( this->config.get_papi_flag() ) {
+        fprintf(stderr, "%s\n", vertex_id_to_papi[vid]);
+        fflush(stderr);
         papi_counters = vertex_id_to_papi[vid];
       }
 

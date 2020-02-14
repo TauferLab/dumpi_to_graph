@@ -177,6 +177,7 @@ Configuration& Configuration::operator=(const Configuration& rhs)
   this->dir_to_trace_file_assignments = rhs.get_dir_to_trace_file_assignments();
   this->dir_to_trace_rank_assignments = rhs.get_dir_to_trace_rank_assignments();
   this->trace_rank_to_owning_rank = rhs.get_trace_rank_to_owning_rank();
+  this->perf_counter = rhs.get_papi_flag();
   this->csmpi_flag = rhs.has_csmpi();
   return *this; 
 }

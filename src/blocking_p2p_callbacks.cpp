@@ -51,8 +51,10 @@ int cb_MPI_Recv(const dumpi_recv *prm,
 
   // Associate this receive event with a timestamp
   trace->register_dumpi_timestamp( wall_time );
+  fprintf(stderr, "hey %s\n", perf->counter_tag[0]);  
   if(papi){
     dumpi_perfinfo counters = *perf;
+    fprintf(stderr, "hey %s\n", counters.counter_tag[0]);	
     trace->register_papi_struct(counters);
   }
 
@@ -95,6 +97,7 @@ int cb_MPI_Send(const dumpi_send *prm,
   // Associate this send event with its channel
   trace->register_send( channel, event_vertex_id );
   
+  fprintf(stderr, "hey %s\n", perf->counter_tag[0]);  
   // Associate this send event with a timestamp
   trace->register_dumpi_timestamp( wall_time );
   if(papi){
