@@ -76,7 +76,6 @@ Configuration parse_config_file( std::string config_file_path )
       vertex_labels.insert( vertex_label );
       if(vertex_label.find("PAPI") != std::string::npos || vertex_label.find("MLX") != std::string::npos){
         perf_counter = true;
-        fprintf(stderr, "PAPI TURNED ON\n");
       }
     }
   }
