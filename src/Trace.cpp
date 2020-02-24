@@ -76,7 +76,7 @@ void Trace::associate_event_with_call( std::string mpi_fn, size_t event_vertex_i
   // Get current call index for this MPI function
   auto call_idx = _mpi_fn_to_idx.at( mpi_fn );
   auto pair = std::make_pair( mpi_fn, call_idx );
-  _mpi_fn_seq.push_back( pair );
+  mpi_fn_seq.push_back( pair );
 }
 
 CommunicatorManager& Trace::get_comm_manager()
@@ -586,7 +586,7 @@ std::vector<std::string> Trace::get_perf_counter_seq() const
 // callstacks) to events in the event sequence
 std::vector<std::pair<std::string,size_t>> Trace::get_mpi_fn_seq() const 
 {
-  return this->_mpi_fn_seq;
+  return this->mpi_fn_seq;
 }
 
 // Returns the mapping from vertex IDs to channels
@@ -638,8 +638,8 @@ void Trace::report_event_seq()
     for ( int i=0; i<n_events; ++i ) {
       std::cout << "Vertex ID: " << i + this->vertex_id_offset
                 << ", Type: " << type_to_name.at( this->event_seq[i] ) 
-                << ", Generating Function: " << this->_mpi_fn_seq[i].first
-                << ", Function Call Index: " << this->_mpi_fn_seq[i].second
+                << ", Generating Function: " << this->mpi_fn_seq[i].first
+                << ", Function Call Index: " << this->mpi_fn_seq[i].second
                 << std::endl;
     }
   }
@@ -647,8 +647,8 @@ void Trace::report_event_seq()
     for ( int i=0; i<n_events; ++i ) {
       std::cout << "Vertex ID: " << i 
                 << ", Type: " << type_to_name.at( this->event_seq[i] ) 
-                << ", Generating Function: " << this->_mpi_fn_seq[i].first
-                << ", Function Call Index: " << this->_mpi_fn_seq[i].second
+                << ", Generating Function: " << this->mpi_fn_seq[i].first
+                << ", Function Call Index: " << this->mpi_fn_seq[i].second
                 << std::endl;
     }
   }
