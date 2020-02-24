@@ -122,6 +122,8 @@ def validate( graph, check_logical_timestamps, clock_condition ):
                 pred_lts = [ p["logical_time"] for p in preds ]
                 assert( lts == max(pred_lts) + 1 )
 
+
+
 def main( graph_path, check_logical_timestamps, clock_condition ):
     graph = read_graph( graph_path )    
     validate( graph, check_logical_timestamps, clock_condition ) 

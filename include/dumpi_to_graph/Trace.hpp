@@ -148,7 +148,7 @@ private:
 
   // For keeping track of which MPI function generated which event(s)
   std::unordered_map<std::string,size_t> _mpi_fn_to_idx;
-  std::vector<std::pair<std::string,size_t>> _mpi_fn_seq;
+  std::vector<std::pair<std::string,size_t>> mpi_fn_seq;
   
   // Tracking wall-time timestamps
   double initial_timestamp; 

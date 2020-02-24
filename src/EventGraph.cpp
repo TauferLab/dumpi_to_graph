@@ -844,6 +844,7 @@ void EventGraph::merge()
   int wall_time_map_tag      = 3;
   int pid_map_tag            = 4;
   int callstack_map_tag      = 5;
+  int fn_call_map_tag        = 6;
   int papi_map_tag           = 433;
   int message_order_edge_tag = 17;
   int program_order_edge_tag = 36;
@@ -856,6 +857,7 @@ void EventGraph::merge()
   std::unordered_map<size_t,int> vertex_id_to_pid = this->vertex_id_to_pid;
   std::unordered_map<size_t,std::string> vertex_id_to_papi = this->vertex_id_to_papi;
   std::unordered_map<size_t,std::string> vertex_id_to_callstack = this->vertex_id_to_callstack;
+  std::unordered_map<size_t,std::pair<std::string,size_t>> vertex_id_to_fn_call = this->vertex_id_to_fn_call;
 
   std::vector<std::pair<size_t,size_t>> message_order_edges = this->message_order_edges;
   std::vector<std::pair<size_t,size_t>> program_order_edges = this->program_order_edges;
@@ -878,6 +880,7 @@ void EventGraph::merge()
       std::unordered_map<size_t,int> pid_map_recv_buffer;
       std::unordered_map<size_t,std::string> papi_map_recv_buffer;
       std::unordered_map<size_t,std::string> callstack_map_recv_buffer;
+      std::unordered_map<size_t,std::pair<std::string,size_t>> fn_call_map_recv_buffer;
       // Receive logical timestamps
       world.recv( i, lts_map_tag, lts_map_recv_buffer );
       for ( auto kvp : lts_map_recv_buffer ) {
@@ -897,6 +900,11 @@ void EventGraph::merge()
       world.recv( i, pid_map_tag, pid_map_recv_buffer );
       for ( auto kvp : pid_map_recv_buffer ) {
         vertex_id_to_pid.insert( kvp );
+      }
+      // Receive function calls that generated each event
+      world.recv( i, fn_call_map_tag, fn_call_map_recv_buffer );
+      for ( auto kvp : fn_call_map_recv_buffer ) {
+        vertex_id_to_fn_call.insert( kvp );
       }
 
       if ( this->config.has_csmpi() ) {
@@ -940,6 +948,7 @@ void EventGraph::merge()
     world.send( 0, event_type_map_tag, this->vertex_id_to_event_type );
     world.send( 0, wall_time_map_tag, this->vertex_id_to_wall_time );
     world.send( 0, pid_map_tag, this->vertex_id_to_pid );
+    world.send( 0, fn_call_map_tag, this->vertex_id_to_fn_call );
     if ( this->config.has_csmpi() ) {
       world.send( 0, callstack_map_tag, this->vertex_id_to_callstack );
     }
@@ -977,6 +986,7 @@ void EventGraph::merge()
     const char lts_attr_name[16]        = "logical_time";
     const char wtime_attr_name[16]      = "wall_time";
     const char pid_attr_name[16]        = "process_id";
+    const char fn_call_attr_name[16]    = "mpi_function";
     const char callstack_attr_name[16]  = "callstack";
     const char papi_attr_name[16]       = "PAPI_ctrs";
 
@@ -988,6 +998,7 @@ void EventGraph::merge()
       size_t lts = vertex_id_to_lts[vid];
       double wtime = vertex_id_to_wall_time[vid];
       int pid = vertex_id_to_pid[vid];
+      std::string mpi_fn = vertex_id_to_fn_call[vid].first;
 
       // Lookup callstack label if available from CSMPI trace
       std::string callstack;
@@ -1007,6 +1018,8 @@ void EventGraph::merge()
       igraph_rc = igraph_cattribute_VAN_set( &graph, wtime_attr_name, vid, wtime );
       // Set process ID vertex attribute
       igraph_rc = igraph_cattribute_VAN_set( &graph, pid_attr_name, vid, pid );
+      // Set generating MPI function vertex attribute
+      igraph_rc = igraph_cattribute_VAS_set( &graph, fn_call_attr_name, vid, mpi_fn.c_str() );
       if ( this->config.has_csmpi() ) {
         // Set callstack vertex attribute
         igraph_rc = igraph_cattribute_VAS_set( &graph, callstack_attr_name, vid, callstack.c_str() );
