@@ -20,7 +20,7 @@ src/request_mutating_callbacks.cpp src/undumpi_callbacks.cpp)
 target_include_directories(dumpi_to_graph PRIVATE include include/dumpi_to_graph include/external)
 
 # Boost
-find_package(Boost 1.70.0 REQUIRED mpi serialization filesystem system)
+find_package(Boost 1.69.0 REQUIRED mpi serialization filesystem system)
 target_include_directories(dumpi_to_graph PRIVATE ${Boost_INCLUDE_DIR})
 target_link_libraries(dumpi_to_graph PRIVATE Boost::mpi)
 target_link_libraries(dumpi_to_graph PRIVATE Boost::serialization)
