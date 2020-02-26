@@ -38,7 +38,7 @@ Configuration parse_args(int argc, char** argv)
     //boost::filesystem::path trace_dir_canonical_path = boost::filesystem::canonical( trace_dir_path );
     //trace_dirs.push_back( trace_dir_canonical_path.string() );
 
-    std::string trace_dir_path( argc[i] );
+    std::string trace_dir_path( argv[i] );
     trace_dirs.push_back( trace_dir_path );
   }
   base_config.set_trace_dirs( trace_dirs );
