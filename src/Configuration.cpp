@@ -12,8 +12,8 @@
 #include "boost/serialization/vector.hpp" 
 #include "boost/serialization/set.hpp" 
 #include "boost/serialization/string.hpp"
-#include "boost/filesystem.hpp"
-#include "boost/filesystem/operations.hpp"
+//#include "boost/filesystem.hpp"
+//#include "boost/filesystem/operations.hpp"
 
 // Internal
 #include "Utilities.hpp"
@@ -33,10 +33,13 @@ Configuration parse_args(int argc, char** argv)
   // Next, parse all of the provided input directories of trace files
   std::vector<std::string> trace_dirs;
   for (int i=2; i<argc; ++i) {
-    // Canonicalize path
-    boost::filesystem::path trace_dir_path( argv[i] );
-    boost::filesystem::path trace_dir_canonical_path = boost::filesystem::canonical( trace_dir_path );
-    trace_dirs.push_back( trace_dir_canonical_path.string() );
+    //// Canonicalize path
+    //boost::filesystem::path trace_dir_path( argv[i] );
+    //boost::filesystem::path trace_dir_canonical_path = boost::filesystem::canonical( trace_dir_path );
+    //trace_dirs.push_back( trace_dir_canonical_path.string() );
+
+    std::string trace_dir_path( argc[i] );
+    trace_dirs.push_back( trace_dir_path );
   }
   base_config.set_trace_dirs( trace_dirs );
   return base_config;
@@ -241,10 +244,12 @@ void Configuration::compute_trace_file_assignment()
     std::string trace_file;
     for ( int i=0; i<n_trace_files; ++i ) {
       
-      // Canonicalize path of trace file
-      boost::filesystem::path trace_file_path( curr_trace_files[i] );
-      boost::filesystem::path trace_file_canonical_path = boost::filesystem::canonical( trace_file_path );
-      trace_file = trace_file_canonical_path.string();
+      //// Canonicalize path of trace file
+      //boost::filesystem::path trace_file_path( curr_trace_files[i] );
+      //boost::filesystem::path trace_file_canonical_path = boost::filesystem::canonical( trace_file_path );
+      //trace_file = trace_file_canonical_path.string();
+
+      trace_file = curr_trace_files[i];
       
       // Determine rank of trace file
       trace_rank = trace_file_to_rank( trace_file );
