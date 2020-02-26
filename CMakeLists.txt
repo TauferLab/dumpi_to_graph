@@ -24,7 +24,6 @@ find_package(Boost 1.69.0 REQUIRED mpi serialization)
 target_include_directories(dumpi_to_graph PRIVATE ${Boost_INCLUDE_DIR})
 target_link_libraries(dumpi_to_graph PRIVATE Boost::mpi)
 target_link_libraries(dumpi_to_graph PRIVATE Boost::serialization)
-target_link_libraries(dumpi_to_graph PRIVATE Boost::system)
 
 # Variant of sst-dumpi with libdumpi enabled, MPI-3 support, and PAPI support
 # not available through spack
