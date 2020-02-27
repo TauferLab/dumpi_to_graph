@@ -69,6 +69,12 @@ Configuration parse_config_file( std::string config_file_path )
       happens_before_orders.insert( order );
     }
   }
+  // Set which MPI functions we will treat as barriers
+  std::set<std::string> barrier_fns;
+  for ( auto elem : config_json["barrier_functions"] ) {
+    std::string fn( elem );
+    barrier_fns.insert( fn );
+  }
   // Set which vertex labels we will assign
   bool perf_counter = false;
   std::set<std::string> vertex_labels;
@@ -94,6 +100,7 @@ Configuration parse_config_file( std::string config_file_path )
   // Construct the configuration 
   Configuration config( mpi_functions,
                             happens_before_orders,
+                            barrier_fns,
                             vertex_labels,
                             edge_labels,
                             (bool)config_json["represent_unmatched_tests"],
@@ -106,6 +113,11 @@ Configuration parse_config_file( std::string config_file_path )
 std::set<std::string> Configuration::get_mpi_functions() const
 {
   return this->mpi_functions;
+}
+
+std::set<std::string> Configuration::get_barrier_fns() const
+{
+  return this->barrier_fns;
 }
 
 std::set<std::string> Configuration::get_happens_before_orders() const
@@ -169,6 +181,7 @@ Configuration& Configuration::operator=(const Configuration& rhs)
     return *this;
   } 
   this->mpi_functions = rhs.get_mpi_functions();
+  this->barrier_fns = rhs.get_barrier_fns();
   this->happens_before_orders = rhs.get_happens_before_orders();
   this->vertex_labels = rhs.get_vertex_labels();
   this->edge_labels = rhs.get_edge_labels();

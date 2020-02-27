@@ -25,6 +25,11 @@
         "MPI_Comm_split"
     ],
 
+    "barrier_functions":
+    [
+        "MPI_Barrier"
+    ],
+
     "happens_before_orders":
     [ 
         "program",
