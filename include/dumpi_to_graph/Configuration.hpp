@@ -22,6 +22,7 @@ public:
   Configuration( 
     const std::set<std::string>& mpi_functions,
     const std::set<std::string>& happens_before_orders,
+    const std::set<std::string>& barrier_fns,
     const std::set<std::string>& vertex_labels,
     const std::set<std::string>& edge_labels,
     bool represent_unmatched_tests,
@@ -30,6 +31,7 @@ public:
     bool perf_counter ) : 
       mpi_functions(mpi_functions),
       happens_before_orders(happens_before_orders),
+      barrier_fns( barrier_fns ),
       vertex_labels(vertex_labels),
       edge_labels(edge_labels),
       represent_unmatched_tests(represent_unmatched_tests),
@@ -52,6 +54,7 @@ public:
   // Accessors for graph-building parameters
   std::set<std::string> get_mpi_functions() const;
   std::set<std::string> get_happens_before_orders() const;
+  std::set<std::string> get_barrier_fns() const;
   std::set<std::string> get_vertex_labels() const;
   std::set<std::string> get_edge_labels() const;
   bool get_represent_unmatched_tests_flag() const;
@@ -119,6 +122,9 @@ private:
   // Define what events to represent in the event graph and how to represent 
   // them
   std::set<std::string> mpi_functions;
+  
+  // Define what MPI functions will be modeled as a barrier
+  std::set<std::string> barrier_fns;
 
   // Define which ordering relationships between events will be represented by
   // edges in the event graph
@@ -154,6 +160,7 @@ private:
   void serialize( Archive& ar, const unsigned int version ) 
   {
     ar & mpi_functions; 
+    ar & barrier_fns;
     ar & happens_before_orders;
     ar & vertex_labels;
     ar & edge_labels;
