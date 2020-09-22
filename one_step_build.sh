@@ -6,5 +6,5 @@ build_dir=build_${system}
 export CC=mpicc
 export CXX=mpicxx
 rm -rf $(pwd)/${build_dir} && mkdir -p $(pwd)/${build_dir} && cd ${build_dir}
-cmake -DDUMPI_ROOT=../../submodules/sst-dumpi/${build_dir} ..
+cmake -DDUMPI_ROOT=$(pwd)/../../submodules/sst-dumpi/${build_dir} ..
 make -j
