@@ -3,7 +3,7 @@
 // Internal
 #include "Channel.hpp"
 
-Request::Request( int type, int id )
+Request::Request( int type, long id )
 {
   this->type = type;
   this->id = id;
@@ -18,7 +18,7 @@ Request::Request( int type, int id )
   this->channel = Channel(); 
 }
 
-Request::Request( int type, int id, const Channel& channel )
+Request::Request( int type, long id, const Channel& channel )
 {
   this->type = type;
   this->id = id;
@@ -35,7 +35,7 @@ int Request::get_type() const
   return this->type;
 }
 
-int Request::get_id() const
+long Request::get_id() const
 {
   return this->id;
 }

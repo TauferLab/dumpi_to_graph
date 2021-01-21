@@ -52,7 +52,7 @@ int cb_MPI_Irecv(const dumpi_irecv *prm,
   // Since this is a non-blocking receive, we don't model it with a vertex, but
   // we do create a request so we can track its completion via a matching 
   // function later on
-  int request_id = event.request;
+  long request_id = event.request;
   Request request(1, request_id, partial_channel );
   trace->register_request( request_id, request );
 
@@ -108,7 +108,7 @@ int cb_MPI_Isend(const dumpi_isend *prm,
   trace->associate_event_with_call( "MPI_Isend", event_vertex_id );
 
   // Since this is a non-blocking send, create and track its associated request
-  int request_id = event.request;
+  long request_id = event.request;
   Request request( 0, request_id, channel );
   trace->register_request( request_id, request );
   

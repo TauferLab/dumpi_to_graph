@@ -42,7 +42,7 @@ int cb_MPI_Wait(const dumpi_wait *prm,
   trace->update_call_idx( "MPI_Wait" );
 
   // Complete the request
-  int request_id = event.request;
+  long request_id = event.request;
   dumpi_status* status_ptr = event.status;
   trace->complete_request( request_id, 
                            status_ptr, 
@@ -77,7 +77,7 @@ int cb_MPI_Waitany(const dumpi_waitany *prm,
   
   // Determine which request was completed
   int request_idx = event.index;
-  int request_id = *(event.requests + request_idx);
+  long request_id = *(event.requests + request_idx);
   dumpi_status* status_ptr = event.status;
 
   // Update the call index for MPI_Waitany
@@ -132,7 +132,7 @@ int cb_MPI_Waitsome(const dumpi_waitsome *prm,
   dumpi_request* requests_ptr = event.requests;
   dumpi_status* statuses_ptr = event.statuses;
   for ( int i=0; i<n_requests_tested; ++i ) {
-    int request_id = *requests_ptr;
+    long request_id = *requests_ptr;
     auto search = request_indices.find( i );
     if (search != request_indices.end()) {
       trace->complete_request( request_id, 
@@ -178,7 +178,7 @@ int cb_MPI_Waitall(const dumpi_waitall *prm,
   dumpi_request* requests_ptr = event.requests;
   dumpi_status* statuses_ptr = event.statuses;
   for ( int i=0; i<n_requests; ++i ) {
-    int request_id = *requests_ptr;
+    long request_id = *requests_ptr;
     trace->complete_request( request_id, 
                              statuses_ptr, 
                              cpu_time, 
@@ -224,7 +224,7 @@ int cb_MPI_Test(const dumpi_test *prm,
   trace->update_call_idx( "MPI_Test" );
   
   // Otherwise, complete the request
-  int request_id = event.request;
+  long request_id = event.request;
   dumpi_status* status_ptr = event.status;
   trace->complete_request( request_id, 
                            status_ptr, 
@@ -268,7 +268,7 @@ int cb_MPI_Testany(const dumpi_testany *prm,
   trace->update_call_idx( "MPI_Testany" );
 
   // Otherwise, complete the request
-  int request_id = *( event.requests + event.index );
+  long request_id = *( event.requests + event.index );
   dumpi_status* status_ptr = event.status;
   trace->complete_request( request_id, 
                            status_ptr, 
@@ -325,7 +325,7 @@ int cb_MPI_Testsome(const dumpi_testsome *prm,
   dumpi_request* requests_ptr = event.requests;
   dumpi_status* statuses_ptr = event.statuses;
   for ( int i=0; i<n_requests_tested; ++i ) {
-    int request_id = *requests_ptr;
+    long request_id = *requests_ptr;
     auto search = request_indices.find( i );
     if (search != request_indices.end()) {
       trace->complete_request( request_id, 
@@ -378,7 +378,7 @@ int cb_MPI_Testall(const dumpi_testall *prm,
   dumpi_request* requests_ptr = event.requests;
   dumpi_status* statuses_ptr = event.statuses;
   for ( int i=0; i<n_requests; ++i ) {
-    int request_id = *requests_ptr;
+    long request_id = *requests_ptr;
     trace->complete_request( request_id, 
                              statuses_ptr, 
                              cpu_time, 

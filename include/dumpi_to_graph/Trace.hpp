@@ -6,6 +6,8 @@
 #include <set>
 #include <unordered_map>
 #include <cstdint> // uint8_t for event types
+#include <fstream>
+#include <iostream>
 
 // Boost 
 #include "boost/mpi.hpp"
@@ -64,7 +66,7 @@ public:
 
   void register_papi_struct(const dumpi_perfinfo& counters);
 
-  void register_request( int request_id, const Request& request );
+  void register_request( long request_id, const Request& request );
 
   Channel determine_channel_of_irecv( const Request& request, 
                                       const dumpi_status* status );
@@ -72,9 +74,9 @@ public:
   Channel determine_channel_of_recv( const dumpi_recv recv );
  
 
-  void cancel_request( int request_id );
-  void free_request( int request_id );
-  void complete_request( int request_id, 
+  void cancel_request( long request_id );
+  void free_request( long request_id );
+  void complete_request( long request_id, 
                          const dumpi_status* status_ptr,
                          const dumpi_time cpu_time,
                          const dumpi_time wall_time,
@@ -93,7 +95,7 @@ public:
 
   channel_map get_channel_to_recv_seq() const;
   channel_map get_channel_to_send_seq() const;
-  std::unordered_map<int,Request> get_id_to_request() const;
+  std::unordered_map<long,Request> get_id_to_request() const;
 
   // Convenience functions for printing representations of the trace
   void report_event_seq();
@@ -102,7 +104,9 @@ public:
   void report_channel_to_recv_seq();
 
   bool get_papi_flag() const {return config.get_papi_flag();};
-
+  
+  std::string get_pluto_entry();
+  
 private:
 
   Configuration config;
@@ -160,7 +164,7 @@ private:
   // For send and recv vertices, there is an associated channel
   std::unordered_map<size_t, Channel> vertex_id_to_channel;
 
-  std::unordered_map<int, Request> id_to_request;
+  std::unordered_map<long, Request> id_to_request;
   std::unordered_map<Channel, std::vector<size_t>, ChannelHash> channel_to_send_seq;
   std::unordered_map<Channel, std::vector<size_t>, ChannelHash> channel_to_recv_seq;
 
@@ -168,7 +172,8 @@ private:
 
   // A function for completing requests during matching function registration
   //void complete_request( int request_id );
-
+  std::ifstream pluto_trace;
+  
 };
 
 #endif // D2G_TRACE_H
