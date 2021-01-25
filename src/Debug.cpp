@@ -37,7 +37,7 @@ bool validate_remote_recv_seqs( const int* recv_buffer,
   return true;
 }
 
-bool validate_trace( Trace trace )
+bool validate_trace( Trace& trace )
 {
   // First we check properties of the event sequence
   auto event_seq = trace.get_event_seq();

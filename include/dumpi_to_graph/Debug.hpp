@@ -30,6 +30,6 @@ bool validate_remote_recv_seqs( const int* recv_buffer,
                                 const channel_map& chan_to_send_seq,
                                 const std::unordered_map<Channel,int,ChannelHash>& chan_to_offset );
 
-bool validate_trace( Trace trace );
+bool validate_trace( Trace& trace );
 
 #endif // D2G_DEBUG_H
