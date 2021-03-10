@@ -31,8 +31,8 @@ Trace::Trace( Configuration config,
   this->trace_rank = trace_rank;
   this->dumpi_to_graph_rank = dumpi_to_graph_rank;
   
-  this->pluto_trace.open(this->trace_dir + "pluto_out" + std::to_string(this->trace_rank)+".txt");
-  std::cout << "Using pluto" << this->trace_dir + "pluto_out" + std::to_string(this->trace_rank) << std::endl;
+  this->pluto_trace.open(this->trace_dir + "/pluto_out" + std::to_string(this->trace_rank)+".txt");
+  std::cout << "Using pluto" << this->trace_dir + "/pluto_out" + std::to_string(this->trace_rank) << ".txt" << std::endl;
   this->pluto_trace.ignore(256, '\n');
   // Get # trace ranks 
   int mpi_rc;
@@ -693,7 +693,7 @@ void Trace::report_id_to_request()
   }
 }
 
-void Trace::get_pluto_entry(int& msg_type, long& req_addr, int& source_type){
-  this->pluto_trace >> msg_type >> req_addr >> source_type;
+void Trace::get_pluto_entry(int& msg_type, long& req_addr, int& source_type, long& entrynum){
+  this->pluto_trace >> msg_type >> req_addr >> source_type >> entrynum;
 }
 

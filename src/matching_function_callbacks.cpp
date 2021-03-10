@@ -29,7 +29,7 @@ int cb_MPI_Wait(const dumpi_wait *prm,
   // Check that event data is OK 
   bool papi = trace->get_papi_flag();
   int msg_type, call_type; 
-  long req_addr;
+  long req_addr, event_num;
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
@@ -46,13 +46,13 @@ int cb_MPI_Wait(const dumpi_wait *prm,
   // Complete the request
   long request_id = event.request;
   
-  trace->get_pluto_entry(msg_type, req_addr, call_type);
+  trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
   if(call_type != 2){
-     std::cerr << "Misaligned Pluto Output." << std::endl;
+     std::cerr << "Misaligned Pluto Output in Wait " << call_type << " " << event_num << std::endl;
   }  
 
   dumpi_status* status_ptr = event.status;
-  trace->complete_request( request_id, 
+  trace->complete_request( req_addr, 
                            status_ptr, 
                            cpu_time, 
                            wall_time, 
@@ -74,7 +74,7 @@ int cb_MPI_Waitany(const dumpi_waitany *prm,
   // Check that event data is OK 
   bool papi = trace->get_papi_flag();
   int msg_type, call_type; 
-  long req_addr;
+  long req_addr, event_num;
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
@@ -88,9 +88,9 @@ int cb_MPI_Waitany(const dumpi_waitany *prm,
   // Determine which request was completed
   int request_idx = event.index;
 
-  trace->get_pluto_entry(msg_type, req_addr, call_type);
+  trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
   if(call_type != 2){
-     std::cerr << "Misaligned Pluto Output." << std::endl;
+     std::cerr << "Misaligned Pluto Output in Waitany " << call_type << " " << event_num << std::endl;
   }    
 
   long request_id = *(event.requests + request_idx);
@@ -100,7 +100,7 @@ int cb_MPI_Waitany(const dumpi_waitany *prm,
   trace->update_call_idx( "MPI_Waitany" );
 
   // Complete the request
-  trace->complete_request( request_id, 
+  trace->complete_request( req_addr, 
                            status_ptr, 
                            cpu_time, 
                            wall_time,
@@ -122,7 +122,7 @@ int cb_MPI_Waitsome(const dumpi_waitsome *prm,
   // Check that event data is OK 
   bool papi = trace->get_papi_flag();
   int msg_type, call_type; 
-  long req_addr;
+  long req_addr, event_num;
 
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
@@ -155,12 +155,12 @@ int cb_MPI_Waitsome(const dumpi_waitsome *prm,
     auto search = request_indices.find( i );
     if (search != request_indices.end()) {
 
-      trace->get_pluto_entry(msg_type, req_addr, call_type);
+      trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
       if(call_type != 2){
-        std::cerr << "Misaligned Pluto Output." << std::endl;
+        std::cerr << "Misaligned Pluto Output in Waitsome " << call_type << " " << event_num << std::endl;
       }
  
-      trace->complete_request( request_id, 
+      trace->complete_request( req_addr, 
                                statuses_ptr, 
                                cpu_time, 
                                wall_time,
@@ -186,7 +186,7 @@ int cb_MPI_Waitall(const dumpi_waitall *prm,
   // Check that event data is OK 
   bool papi = trace->get_papi_flag();
   int msg_type, call_type; 
-  long req_addr;
+  long req_addr, event_num;
 
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
@@ -208,13 +208,13 @@ int cb_MPI_Waitall(const dumpi_waitall *prm,
   for ( int i=0; i<n_requests; ++i ) {
     long request_id = *requests_ptr;
 
-    trace->get_pluto_entry(msg_type, req_addr, call_type);
+    trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
     if(call_type != 2){
-      std::cerr << "Misaligned Pluto Output." << std::endl;
+      std::cerr << "Misaligned Pluto Output in Waitall " << call_type << " " << event_num << std::endl;
     }
 
 
-    trace->complete_request( request_id, 
+    trace->complete_request( req_addr, 
                              statuses_ptr, 
                              cpu_time, 
                              wall_time,
@@ -239,7 +239,7 @@ int cb_MPI_Test(const dumpi_test *prm,
   // Check that event data is OK 
   bool papi = trace->get_papi_flag();
   int msg_type, call_type; 
-  long req_addr;
+  long req_addr, event_num;
  
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
@@ -263,14 +263,14 @@ int cb_MPI_Test(const dumpi_test *prm,
   
   // Otherwise, complete the request
   long request_id = event.request;
-  trace->get_pluto_entry(msg_type, req_addr, call_type);
+  trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
   if(call_type != 2){
-      std::cerr << "Misaligned Pluto Output." << std::endl;
+      std::cerr << "Misaligned Pluto Output in Test " << call_type << " " << event_num << std::endl;
   }
 
  
   dumpi_status* status_ptr = event.status;
-  trace->complete_request( request_id, 
+  trace->complete_request( req_addr, 
                            status_ptr, 
                            cpu_time, 
                            wall_time,
@@ -292,7 +292,7 @@ int cb_MPI_Testany(const dumpi_testany *prm,
   // Check that event data is OK 
   bool papi = trace->get_papi_flag();
   int msg_type, call_type; 
-  long req_addr;
+  long req_addr, event_num;
  
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
@@ -317,15 +317,15 @@ int cb_MPI_Testany(const dumpi_testany *prm,
   // Otherwise, complete the request
   long request_id = *( event.requests + event.index );
 
-  trace->get_pluto_entry(msg_type, req_addr, call_type);
+  trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
   if(call_type != 2){
-    std::cerr << "Misaligned Pluto Output." << std::endl;
+    std::cerr << "Misaligned Pluto Output in Testany " << call_type << " " << event_num << std::endl;
   }
 
  
 
   dumpi_status* status_ptr = event.status;
-  trace->complete_request( request_id, 
+  trace->complete_request( req_addr, 
                            status_ptr, 
                            cpu_time, 
                            wall_time,
@@ -347,7 +347,7 @@ int cb_MPI_Testsome(const dumpi_testsome *prm,
   // Check that event data is OK 
   bool papi = trace->get_papi_flag();
   int msg_type, call_type; 
-  long req_addr;
+  long req_addr, event_num;
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
@@ -386,12 +386,12 @@ int cb_MPI_Testsome(const dumpi_testsome *prm,
     auto search = request_indices.find( i );
     if (search != request_indices.end()) {
 
-      trace->get_pluto_entry(msg_type, req_addr, call_type);
+      trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
       if(call_type != 2){
-        std::cerr << "Misaligned Pluto Output." << std::endl;
+        std::cerr << "Misaligned Pluto Output in Testsome " << call_type << " " << event_num << std::endl;
       }
 
-      trace->complete_request( request_id, 
+      trace->complete_request( req_addr, 
                                statuses_ptr, 
                                cpu_time, 
                                wall_time,
@@ -417,7 +417,7 @@ int cb_MPI_Testall(const dumpi_testall *prm,
   // Check that event data is OK 
   bool papi = trace->get_papi_flag();
   int msg_type, call_type; 
-  long req_addr;
+  long req_addr, event_num;
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
@@ -445,13 +445,13 @@ int cb_MPI_Testall(const dumpi_testall *prm,
   for ( int i=0; i<n_requests; ++i ) {
     long request_id = *requests_ptr;
     
-    trace->get_pluto_entry(msg_type, req_addr, call_type);
+    trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
     if(call_type != 2){
-      std::cerr << "Misaligned Pluto Output." << std::endl;
+      std::cerr << "Misaligned Pluto Output in Testall " << call_type << " " << event_num << std::endl;
     }
 
     
-    trace->complete_request( request_id, 
+    trace->complete_request( req_addr, 
                              statuses_ptr, 
                              cpu_time, 
                              wall_time,

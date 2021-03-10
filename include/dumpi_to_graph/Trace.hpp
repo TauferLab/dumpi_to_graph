@@ -105,7 +105,7 @@ public:
 
   bool get_papi_flag() const {return config.get_papi_flag();};
   
-  void get_pluto_entry(int&, long&, int&);
+  void get_pluto_entry(int&, long&, int&, long&);
   
 private:
 
