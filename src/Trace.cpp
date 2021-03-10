@@ -31,6 +31,9 @@ Trace::Trace( Configuration config,
   this->trace_rank = trace_rank;
   this->dumpi_to_graph_rank = dumpi_to_graph_rank;
   
+  this->pluto_trace.open(this->trace_dir + "/pluto_out" + std::to_string(this->trace_rank)+".txt");
+  std::cout << "Using pluto" << this->trace_dir + "/pluto_out" + std::to_string(this->trace_rank) << ".txt" << std::endl;
+  this->pluto_trace.ignore(256, '\n');
   // Get # trace ranks 
   int mpi_rc;
   int reduce_recv_buffer;
@@ -229,7 +232,7 @@ void Trace::register_finalize()
 
 
 // Helper for updating id_to_request
-void Trace::register_request( int request_id, const Request& request )
+void Trace::register_request( long request_id, const Request& request )
 { 
   auto search = this->id_to_request.find( request_id );
   // Case 1: Request not already tracked, insert
@@ -331,7 +334,7 @@ Channel Trace::determine_channel_of_irecv( const Request& request,
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void Trace::cancel_request( int request_id )
+void Trace::cancel_request( long request_id )
 {
   auto search = this->id_to_request.find( request_id );
   if ( search != this->id_to_request.end() ) {
@@ -345,7 +348,7 @@ void Trace::cancel_request( int request_id )
   }
 }
 
-void Trace::free_request( int request_id )
+void Trace::free_request( long request_id )
 {
   auto search = this->id_to_request.find( request_id );
   if ( search != this->id_to_request.end() ) {
@@ -359,7 +362,7 @@ void Trace::free_request( int request_id )
   }
 }
 
-void Trace::complete_request( int request_id,
+void Trace::complete_request( long request_id,
                               const dumpi_status* status_ptr,
                               const dumpi_time cpu_time,
                               const dumpi_time wall_time,
@@ -609,7 +612,7 @@ channel_map Trace::get_channel_to_send_seq() const
   return this->channel_to_send_seq;
 }
 
-std::unordered_map<int,Request> Trace::get_id_to_request() const
+std::unordered_map<long,Request> Trace::get_id_to_request() const
 {
   return this->id_to_request;
 }
@@ -688,5 +691,9 @@ void Trace::report_id_to_request()
     std::cout << "Request ID: " << kvp.first 
               << " Request Object: " << kvp.second << std::endl;
   }
+}
+
+void Trace::get_pluto_entry(int& msg_type, long& req_addr, int& source_type, long& entrynum){
+  this->pluto_trace >> msg_type >> req_addr >> source_type >> entrynum;
 }
 

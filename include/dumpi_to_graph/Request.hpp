@@ -15,10 +15,10 @@ class Request
 {
 public:
   Request() {}
-  Request( int type, int id );
-  Request( int type, int id, const Channel& channel );
+  Request( int type, long id );
+  Request( int type, long id, const Channel& channel );
   int get_type() const;
-  int get_id() const;
+  long get_id() const;
   Channel get_channel() const;
   bool is_active() const;
   bool is_cancelled() const;
@@ -49,7 +49,7 @@ public:
     return out;
   }
 private:
-  int id;
+  long id;
   int type;
   bool active;
   bool cancelled = false;

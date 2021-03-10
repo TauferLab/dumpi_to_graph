@@ -22,6 +22,8 @@ int cb_MPI_Irecv(const dumpi_irecv *prm,
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
   bool papi = trace->get_papi_flag();
+  int msg_type, call_type;
+  long req_addr, event_num;
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
@@ -52,10 +54,16 @@ int cb_MPI_Irecv(const dumpi_irecv *prm,
   // Since this is a non-blocking receive, we don't model it with a vertex, but
   // we do create a request so we can track its completion via a matching 
   // function later on
-  int request_id = event.request;
-  Request request(1, request_id, partial_channel );
-  trace->register_request( request_id, request );
+  long request_id = event.request;
 
+  trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
+  if(msg_type != 1 || call_type != 1){
+      std::cerr << "Misaligned Pluto output in Irecv, found " << call_type << " " << event_num << std::endl;
+  }
+
+  Request request(1, req_addr, partial_channel );
+  trace->register_request( req_addr, request );
+  
   // Return OK
   return 0;
 }
@@ -70,6 +78,9 @@ int cb_MPI_Isend(const dumpi_isend *prm,
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
   bool papi = trace->get_papi_flag();
+  int msg_type, call_type;
+  long req_addr, event_num;
+
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
   }
@@ -108,9 +119,15 @@ int cb_MPI_Isend(const dumpi_isend *prm,
   trace->associate_event_with_call( "MPI_Isend", event_vertex_id );
 
   // Since this is a non-blocking send, create and track its associated request
-  int request_id = event.request;
-  Request request( 0, request_id, channel );
-  trace->register_request( request_id, request );
+  long request_id = event.request;
+
+  trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
+  if(msg_type != 0 || call_type != 0){
+      std::cerr << "Misaligned Pluto output in isend found " << call_type << " " << event_num << std::endl;
+  }
+
+  Request request( 0, req_addr, channel );
+  trace->register_request( req_addr, request );
   
   // Return OK
   return 0;
