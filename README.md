@@ -43,4 +43,4 @@ Copyright (c) 2021, Global Computing Lab
 
 ANACIN-X is distributed under terms of the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0) with LLVM Exceptions.
 
-See [LICENSE](https://github.com/TauferLab/ANACIN-X/blob/documentation/LICENSE) for more details.
+See [LICENSE](https://github.com/TauferLab/dumpi_to_graph/blob/master/LICENSE) for more details.
