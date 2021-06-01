@@ -37,7 +37,7 @@ An example configuration file is in `config/default.json` The following options 
     * Known compatible implementations include:
         * MVAPICH2/2.3
 
-## Copyright and License:
+### Copyright and License:
 
 Copyright (c) 2021, Global Computing Lab
 
