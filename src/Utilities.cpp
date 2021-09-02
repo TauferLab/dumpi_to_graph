@@ -22,7 +22,7 @@ int trace_file_to_rank( const std::string trace_file )
 std::string get_csmpi_trace_file( std::string trace_dir, int trace_rank )
 {
   std::string csmpi_trace_file = trace_dir;
-  csmpi_trace_file += "/csmpi/rank_";
+  csmpi_trace_file += "/rank_";
   csmpi_trace_file += std::to_string( trace_rank );
   csmpi_trace_file += ".csmpi";
   return csmpi_trace_file;
