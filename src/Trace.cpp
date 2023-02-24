@@ -145,6 +145,7 @@ void Trace::register_papi_struct(const dumpi_perfinfo& counters)
 // Helper for updating channel_to_recv_seq and vertex_id_to_channel
 void Trace::register_recv( const Channel& channel, size_t recv_vertex_id )
 {
+  // std::cout << "JACK_ register_recv" << std::endl;
   // First update the sequence of event types
   this->event_seq.push_back(1);
   // First update the mapping from channels to sequences of recv vertex IDs
@@ -179,6 +180,7 @@ void Trace::register_recv( const Channel& channel, size_t recv_vertex_id )
 // Helper for updating channel_to_send_seq and vertex_id_to_channel
 void Trace::register_send( const Channel& channel, size_t send_vertex_id )
 {
+  // std::cout << "JACK_ register_send con: " << channel << std::endl;
   // First update the sequence of event types
   this->event_seq.push_back(0);
   // Next update the mapping from channels to sequences of send vertex IDs
@@ -235,20 +237,34 @@ void Trace::register_finalize()
 void Trace::register_request( long request_id, const Request& request )
 { 
   auto search = this->id_to_request.find( request_id );
+  
   // Case 1: Request not already tracked, insert
   if ( search == this->id_to_request.end() ) {
     this->id_to_request.insert( { request_id, request } );
   } 
   // Case 2: Request already tracked. Error. 
   else {
+    // TODO: JACK_ add validation to compare the type of the request
     auto prev_request = search->second; 
-    std::stringstream ss;
-    ss << "dumpi_to_graph rank: " << this->get_dumpi_to_graph_rank()
-       << " trying to map request ID: " << request_id 
-       << " to request: " << request
-       << " but request ID is already mapped to request: " << prev_request 
-       << std::endl;
-    throw std::runtime_error( ss.str() );
+    if(prev_request.get_type() == request.get_type()){ // request is the same
+      // std::cout << "type of request: " << prev_request.get_type() << std::endl; // JACK_
+      std::stringstream ss;
+      ss << "dumpi_to_graph rank: " << this->get_dumpi_to_graph_rank()
+        << " trying to map request ID: " << request_id 
+        << " to request: " << request
+        << " but request ID is already mapped to request: " << prev_request 
+        << std::endl;
+      throw std::runtime_error( ss.str() );
+    }
+    else{
+      std::cerr << "JACK::Adding request with ID: " << request_id << std::endl;
+      // this->id_to_request.insert( { request_id, request } );
+      // JACK_
+      auto inserted = this->id_to_request.insert( { request_id, request } );
+      std::cout << "Inserted: " << inserted.second
+                << ";; Prev: " << prev_request
+                << ";; actual: " << request << std::endl;
+    }
   }
 }
 
@@ -380,6 +396,7 @@ void Trace::complete_request( long request_id,
   int request_type;
   Request request;
   // Case 1: Request is currently tracked, so we can get its type and proceed
+  // std::cerr << "Request search: " <<  request_search->second.get_channel() << std::endl;
   if ( request_search != this->id_to_request.end() ) {
     request = request_search->second;
     request_type = request.get_type();
@@ -388,6 +405,7 @@ void Trace::complete_request( long request_id,
   // appropriate callback, or the trace is malformed. Either way, we have to 
   // abort. 
   else {
+    std::cerr << "JACK:: Request search end: " <<  request_search->first << std::endl;
     std::stringstream ss;
     ss << "Tried to handle request corresponding to request ID: " 
        << request_id << " but no such request exists." << std::endl;
@@ -685,8 +703,9 @@ void Trace::report_channel_to_recv_seq()
 
 void Trace::report_id_to_request()
 {
-  std::cout << "Request ID to request map for trace rank: " 
+  std::cout << "Request ID to request map for trace rank  - Object: " 
             << this->get_trace_rank() <<std::endl;
+
   for ( auto kvp : this->id_to_request ) {
     std::cout << "Request ID: " << kvp.first 
               << " Request Object: " << kvp.second << std::endl;

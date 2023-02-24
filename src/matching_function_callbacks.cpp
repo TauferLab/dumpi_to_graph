@@ -70,6 +70,8 @@ int cb_MPI_Waitany(const dumpi_waitany *prm,
                    const dumpi_perfinfo *perf, 
                    void *uarg) 
 {
+  // std::cout << "JACK_ Entrando al waitany" << std::endl;
+
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 
   bool papi = trace->get_papi_flag();
@@ -90,9 +92,10 @@ int cb_MPI_Waitany(const dumpi_waitany *prm,
 
   trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
   if(call_type != 2){
+    // JACK_ FIXME: Dumpi says this is a waitany event but pluto says it is send event
      std::cerr << "Misaligned Pluto Output in Waitany " << call_type << " " << event_num << std::endl;
-  }    
-
+  }
+     
   long request_id = *(event.requests + request_idx);
   dumpi_status* status_ptr = event.status;
 

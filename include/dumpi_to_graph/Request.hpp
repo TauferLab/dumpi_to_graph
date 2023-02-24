@@ -19,6 +19,7 @@ public:
   Request( int type, long id, const Channel& channel );
   int get_type() const;
   long get_id() const;
+  long get_id_fk() const;
   Channel get_channel() const;
   bool is_active() const;
   bool is_cancelled() const;
@@ -33,6 +34,7 @@ public:
     } else {
       this->type = rhs.get_type();
       this->id = rhs.get_id();
+      this->id_fk = rhs.get_id_fk();
       this->active = rhs.is_active();
       this->cancelled = rhs.is_cancelled();
       this->channel = rhs.get_channel();
@@ -44,12 +46,15 @@ public:
   {
     out << "Type: " << request.get_type()
         << ", ID: " << request.get_id()
+        << ", ID_fk: " << request.get_id_fk()
         << ", Active?: " << request.is_active()
-        << ", Cancelled?: " << request.is_cancelled();
+        << ", Cancelled?: " << request.is_cancelled()
+        << ", Channel: " << request.get_channel();
     return out;
   }
 private:
   long id;
+  long id_fk;
   int type;
   bool active;
   bool cancelled = false;
