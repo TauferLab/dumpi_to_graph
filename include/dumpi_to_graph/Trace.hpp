@@ -66,7 +66,7 @@ public:
 
   void register_papi_struct(const dumpi_perfinfo& counters);
 
-  void register_request( long request_id, const Request& request );
+  void register_request( long request_id, Request& request );
 
   Channel determine_channel_of_irecv( const Request& request, 
                                       const dumpi_status* status );

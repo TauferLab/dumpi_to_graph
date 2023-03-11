@@ -234,9 +234,10 @@ void Trace::register_finalize()
 
 
 // Helper for updating id_to_request
-void Trace::register_request( long request_id, const Request& request )
+void Trace::register_request( long request_id, Request& request )
 { 
   auto search = this->id_to_request.find( request_id );
+  // std::cout << "JACK::Adding request with ID: " << request_id << std::endl;
   
   // Case 1: Request not already tracked, insert
   if ( search == this->id_to_request.end() ) {
@@ -246,6 +247,7 @@ void Trace::register_request( long request_id, const Request& request )
   else {
     // TODO: JACK_ add validation to compare the type of the request
     auto prev_request = search->second; 
+    
     if(prev_request.get_type() == request.get_type()){ // request is the same
       // std::cout << "type of request: " << prev_request.get_type() << std::endl; // JACK_
       std::stringstream ss;
@@ -257,13 +259,19 @@ void Trace::register_request( long request_id, const Request& request )
       throw std::runtime_error( ss.str() );
     }
     else{
-      std::cerr << "JACK::Adding request with ID: " << request_id << std::endl;
       // this->id_to_request.insert( { request_id, request } );
       // JACK_
-      auto inserted = this->id_to_request.insert( { request_id, request } );
-      std::cout << "Inserted: " << inserted.second
-                << ";; Prev: " << prev_request
-                << ";; actual: " << request << std::endl;
+      request.renew_id();
+      std::cout << "JACK::Adding request with ID: " << request.get_id() << " already existed ID: " << request_id << " rank: " << this->get_trace_rank() << std::endl;
+
+      auto inserted = this->id_to_request.insert( { request.get_id(), request } );
+      // this->report_id_to_request();
+      // std::stringstream ss;
+      // std::cout << "JACK_ Inserted: " << inserted.first->second
+      //           << ";; Prev: " << prev_request
+      //           << ";; actual: " << request << std::endl;
+      // throw std::runtime_error( ss.str() );
+
     }
   }
 }
@@ -392,11 +400,12 @@ void Trace::complete_request( long request_id,
   // MPI_Rget, and various others. The outcomes of handling these requests are
   // modeled differently in the event graph, so the first thing we have to do
   // is look up what kind of request we are dealing with.
+  // TODO: verify insertion
   auto request_search = this->id_to_request.find( request_id );
   int request_type;
   Request request;
   // Case 1: Request is currently tracked, so we can get its type and proceed
-  // std::cerr << "Request search: " <<  request_search->second.get_channel() << std::endl;
+  // std::cerr << "JACK_ Request search: " <<  request_search->second.get_channel() << std::endl;
   if ( request_search != this->id_to_request.end() ) {
     request = request_search->second;
     request_type = request.get_type();
@@ -405,12 +414,12 @@ void Trace::complete_request( long request_id,
   // appropriate callback, or the trace is malformed. Either way, we have to 
   // abort. 
   else {
-    std::cerr << "JACK:: Request search end: " <<  request_search->first << std::endl;
+    // std::cout << "JACK:: Request search end: " <<  request_id << " rank: " << this->get_trace_rank() << std::endl;
     std::stringstream ss;
-    ss << "Tried to handle request corresponding to request ID: " 
-       << request_id << " but no such request exists." << std::endl;
-    std::cerr << "Current id_to_request map is:" << std::endl;
-    this->report_id_to_request();
+    std::cout << "Tried to handle request corresponding to request ID: " 
+       << request_id << " but no such request exists." << " rank: " << this->get_trace_rank()<< std::endl;
+    // std::cerr << "Current id_to_request map is:" << std::endl;
+    // this->report_id_to_request();
     throw std::runtime_error( ss.str() );
   }
 
@@ -418,10 +427,13 @@ void Trace::complete_request( long request_id,
   // specialized request completion handler.
   // Case 1: request_type == 0 --> MPI_Isend
   if ( request_type == 0 ) {
+    // std::cout << "JACK_ isendRequest" << std::endl;
     complete_isend_request( request );
+
   }
   // Case 2: request_type == 1 --> MPI_Irecv
   else if ( request_type == 1 ) {
+    // std::cout << "JACK_ irecvRequest" << std::endl;
     complete_irecv_request( request, 
                             status_ptr, 
                             cpu_time, 
@@ -432,6 +444,8 @@ void Trace::complete_request( long request_id,
   // Case 3+: FIXME: We don't handle persistent communication requests or 
   // one-sided communication just yet
   else {
+    // std::cout << "JACK_ case 3+" << std::endl;
+
     std::stringstream ss;
     ss << "Handling completion of persistent communication requests and "
        << "one-sided communication requests is not implemented yet." << std::endl;
@@ -440,6 +454,8 @@ void Trace::complete_request( long request_id,
 
   // No matter what kind of request we are handling, once it is handled it must
   // be removed from the id_to_request map.
+  // std::cout << "JACK_ Erasing id:  " << request_id << std::endl;
+
   this->id_to_request.erase( request_id );
 }
 
@@ -703,7 +719,7 @@ void Trace::report_channel_to_recv_seq()
 
 void Trace::report_id_to_request()
 {
-  std::cout << "Request ID to request map for trace rank  - Object: " 
+  std::cout << "ID_to_request map for trace rank: " 
             << this->get_trace_rank() <<std::endl;
 
   for ( auto kvp : this->id_to_request ) {

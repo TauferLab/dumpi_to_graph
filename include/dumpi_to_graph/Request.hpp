@@ -19,6 +19,8 @@ public:
   Request( int type, long id, const Channel& channel );
   int get_type() const;
   long get_id() const;
+  void set_id(long id);
+  void renew_id();
   long get_id_fk() const;
   Channel get_channel() const;
   bool is_active() const;

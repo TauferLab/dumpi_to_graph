@@ -61,6 +61,7 @@ int cb_MPI_Irecv(const dumpi_irecv *prm,
       std::cerr << "Misaligned Pluto output in Irecv, found " << call_type << " " << event_num << std::endl;
   }
 
+// JACK_ Modify to add idFK instead of ID
   Request request(1, req_addr, partial_channel );
   trace->register_request( req_addr, request );
   
@@ -123,7 +124,7 @@ int cb_MPI_Isend(const dumpi_isend *prm,
 
   trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
   if(msg_type != 0 || call_type != 0){
-      std::cerr << "Misaligned Pluto output in isend found " << call_type << " " << event_num << std::endl;
+      std::cout << "Misaligned Pluto output in isend found " << call_type << " " << event_num << " ID: " << req_addr << " rank: " <<trace->get_trace_rank() << std::endl;
   }
 
   Request request( 0, req_addr, channel );

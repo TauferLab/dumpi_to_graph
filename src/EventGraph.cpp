@@ -453,7 +453,7 @@ void EventGraph::disambiguate_vertex_ids()
   std::unordered_map<int,size_t> trace_rank_to_vertex_count;
   for ( auto kvp : this->rank_to_trace ) {
     size_t vertex_count = kvp.second->get_final_vertex_id() + 1;
-    std::cout << "vertex ID: " << vertex_count << std::endl;
+    std::cout << "JACK_ vertex ID: " << vertex_count << std::endl;
     trace_rank_to_vertex_count.insert( { kvp.first, vertex_count } );
   }
 

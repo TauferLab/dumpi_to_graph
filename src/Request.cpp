@@ -30,7 +30,7 @@ Request::Request( int type, long id, const Channel& channel )
   this->type = type;
   this->id = id;
   // TODO: JACK_ create id_fk
-  this->id_fk = id+type; // JACK_ MODIFY
+  this->id_fk = id+type+1; // JACK_ MODIFY
   
   if ( type == 0 || type == 1 ) {
     this->active = true;
@@ -49,6 +49,15 @@ int Request::get_type() const
 long Request::get_id() const
 {
   return this->id;
+}
+
+void Request::set_id(long id) 
+{
+    this->id = id;
+}
+void Request::renew_id()
+{
+    this->id = this->id_fk;
 }
 
 long Request::get_id_fk() const
