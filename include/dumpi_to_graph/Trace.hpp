@@ -81,7 +81,8 @@ public:
                          const dumpi_time cpu_time,
                          const dumpi_time wall_time,
                          const dumpi_perfinfo *ctrs,
-                         std::string matching_fn_call );
+                         std::string matching_fn_call,
+                         long event_num=-1 );
 
   void complete_isend_request( Request request );
   void complete_irecv_request( Request request,

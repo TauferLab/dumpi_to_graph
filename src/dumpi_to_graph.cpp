@@ -107,7 +107,7 @@ int main(int argc, char** argv)
       }   
       // Read the stream of MPI events
       int undumpi_rc;
-      bool print_progress = false;
+      bool print_progress = true;
       undumpi_rc = undumpi_read_stream( profile, &callbacks, trace_ptr, print_progress );
       // Close tracefile
       undumpi_close( profile );

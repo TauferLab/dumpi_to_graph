@@ -53,6 +53,7 @@ void set_callbacks(libundumpi_callbacks* callbacks,
     else if (fn == "MPI_Comm_rank")    { callbacks->on_comm_rank    = cb_MPI_Comm_rank;    }
     else if (fn == "MPI_Comm_size")    { callbacks->on_comm_size    = cb_MPI_Comm_size;    }
     else if (fn == "MPI_Comm_split")   { callbacks->on_comm_split   = cb_MPI_Comm_split;   }
+    // else if (fn == "MPI_Allreduce")    { callbacks->on_allreduce    = cb_MPI_Allreduce;    }
   }
   
   // Toggle on callbacks for functions that will be modeled as barriers

@@ -53,18 +53,17 @@ int cb_MPI_Wait(const dumpi_wait *prm,
   else{
     std::cout << "JACK_ it is aligned for wait - " << req_addr << " - " << call_type << " - " << event_num << " - rank: " << trace->get_trace_rank()  << std::endl;
   } 
-  if(req_addr==94672593235512){
-    std::cout << "JACK_ entro - " << req_addr << " - " << call_type << " - " << event_num  << std::endl;
-  }
-
-  dumpi_status* status_ptr = event.status;
-  trace->complete_request( req_addr, 
-                           status_ptr, 
-                           cpu_time, 
-                           wall_time, 
-                           perf,
-                           "MPI_Wait" );
-
+  
+  // if(event_num!=5){
+    dumpi_status* status_ptr = event.status;
+    trace->complete_request( req_addr, 
+                            status_ptr, 
+                            cpu_time, 
+                            wall_time, 
+                            perf,
+                            "MPI_Wait",
+                            event_num );
+  // }
   // Return OK
   return 0;
 } 
@@ -76,7 +75,6 @@ int cb_MPI_Waitany(const dumpi_waitany *prm,
                    const dumpi_perfinfo *perf, 
                    void *uarg) 
 {
-  // std::cout << "JACK_ Entrando al waitany" << std::endl;
 
   Trace* trace = (Trace*) uarg;
   // Check that event data is OK 

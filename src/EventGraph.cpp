@@ -521,7 +521,7 @@ void EventGraph::make_message_order_edges()
   this->exchange_remote_message_matching_data();
 }
 
-// TODO
+// TODO:
 void EventGraph::make_collective_edges()
 {
 }

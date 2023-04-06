@@ -15,6 +15,9 @@ int cb_MPI_Barrier(const dumpi_barrier *prm,
                    void *uarg) 
 {
   Trace* trace = (Trace*) uarg;
+  std::cerr << "DumpiToGraph::" << __func__ << " detected " << " Rank: " << trace->get_trace_rank() << std::endl;
+  int msg_type, call_type;
+  long req_addr, event_num;
   // Check that event data is OK 
   bool papi = trace->get_papi_flag();
   if(papi){
@@ -41,6 +44,12 @@ int cb_MPI_Barrier(const dumpi_barrier *prm,
   // Associate this barrier event with the MPI function call that generated it
   trace->update_call_idx( "MPI_Barrier" );
   trace->associate_event_with_call( "MPI_Barrier", event_vertex_id );
+
+
+  trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
+  if(msg_type != 2 || call_type != 4){
+      std::cerr << "Misaligned Pluto output in Barrier, found " << call_type << " " << event_num << " Rank: " << trace->get_trace_rank() << std::endl;
+  }
 
   // Return OK
   return 0;
@@ -94,7 +103,11 @@ int cb_MPI_Allreduce(const dumpi_allreduce *prm,
                      void *uarg) 
 {
   Trace* trace = (Trace*) uarg;
+  std::cerr << "DumpiToGraph::" << __func__ << " detected " << " Rank: " << trace->get_trace_rank() << std::endl;
+
   // Check that event data is OK 
+  int msg_type, call_type;
+  long req_addr, event_num;
   bool papi = trace->get_papi_flag();
   if(papi){
     validate_dumpi_event(prm, cpu, wall, perf);
@@ -121,7 +134,10 @@ int cb_MPI_Allreduce(const dumpi_allreduce *prm,
   // Associate this barrier event with the MPI function call that generated it
   trace->update_call_idx( "MPI_Allreduce" );
   trace->associate_event_with_call( "MPI_Allreduce", event_vertex_id );
-
+  trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
+  if(msg_type != 2 || call_type != 5){
+      std::cerr << "Misaligned Pluto output in AllReduce, found " << call_type << " " << event_num << " Rank: " << trace->get_trace_rank() << std::endl;
+  }
   // Return OK
   return 0;
 }
