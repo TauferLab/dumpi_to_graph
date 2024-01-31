@@ -39,6 +39,14 @@ public:
     dst(isend_event.dest),
     tag(isend_event.tag),
     comm(isend_event.comm) {}
+  // TODO: uncomment the following after adding that to dumpi. 
+  // For now, in src/blocking_collective_callbacks, I am calling
+  // register_bcast 
+  //Channel( const int bcaster_rank, const dumpi_bcast bcast_event ) :
+  //  src(bcaster_rank),
+  //  dst(bcast_event.dest),
+  //  tag(bcast_event.tag),
+  //  comm(bcast_event.comm) {}
  
   // Accessors
   int get_src() const;

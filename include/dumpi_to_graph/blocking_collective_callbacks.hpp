@@ -39,4 +39,13 @@ int cb_MPI_Alltoallv(const dumpi_alltoallv *prm,
                      const dumpi_time *wall, 
                      const dumpi_perfinfo *perf, 
                      void *uarg); 
+
+int cb_MPI_Bcast(const dumpi_bcast *prm, 
+                   uint16_t thread, 
+                   const dumpi_time *cpu, 
+                   const dumpi_time *wall, 
+                   const dumpi_perfinfo *perf, 
+                   void *uarg);
+
+
 #endif // D2G_BLOCKING_COLLECTIVE_CALLBACKS_H

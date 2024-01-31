@@ -646,6 +646,16 @@ channel_map Trace::get_channel_to_send_seq() const
   return this->channel_to_send_seq;
 }
 
+/*
+// Returns the mapping between channels having this trace process as the bcaster
+// and the sequence of vertex IDs representing those bcast
+channel_map Trace::get_channel_to_bcast_seq() const
+{
+  return this->channel_to_bcast_seq;
+}
+*/
+
+
 std::unordered_map<long,Request> Trace::get_id_to_request() const
 {
   return this->id_to_request;
@@ -717,6 +727,22 @@ void Trace::report_channel_to_recv_seq()
   }
 }
 
+/*
+void Trace::report_channel_to_bcast_seq()
+{
+  std::cout << "Channel to bcast sequence map for trace rank: " 
+            << this->get_trace_rank() << std::endl;
+  for ( auto kvp : this->channel_to_bcast_seq ) {
+    std::cout << "Channel: " << kvp.first << ", Send Vertex IDs: ";
+    for ( auto send : kvp.second ) {
+      std::cout << " " << send;
+    }
+    std::cout << std::endl;
+  }
+}
+*/
+
+
 void Trace::report_id_to_request()
 {
   std::cout << "ID_to_request map for trace rank: " 
@@ -732,3 +758,39 @@ void Trace::get_pluto_entry(int& msg_type, long& req_addr, int& source_type, lon
   this->pluto_trace >> msg_type >> req_addr >> source_type >> entrynum;
 }
 
+/*
+// Helper for updating channel_to_bcast_seq and vertex_id_to_channel
+void Trace::register_bcast( const Channel& channel, size_t send_vertex_id )
+{
+  // std::cout << "JACK_ register_bcast con: " << channel << std::endl;
+  // First update the sequence of event types
+  this->event_seq.push_back(0);
+  // Next update the mapping from channels to sequences of send vertex IDs
+  auto search = this->channel_to_bcast_seq.find( channel );
+  if ( search != this->channel_to_bcast_seq.end() ) {
+    search->second.push_back( bcast_vertex_id );
+  } else {
+    std::vector<size_t> vertex_id_seq = { send_vertex_id };
+    this->channel_to_bcast_seq.insert( { channel, vertex_id_seq } );
+  }
+  // Next update the mapping from vertex IDs to channels
+#ifdef PARANOID_INSERTION
+  auto vid_search = this->vertex_id_to_channel.find( bcast_vertex_id );
+  // Vertex has not been assigned a channel yet, all good
+  if ( vid_search == this->vertex_id_to_channel.end() ) {
+    this->vertex_id_to_channel.insert( { bcast_vertex_id, channel } );
+  }
+  // Vertex already has an associated channel... we messed up somewhere
+  else {
+    std::stringstream ss;
+    ss << "Trying to assign channel: " << channel
+       << " to send vertex ID: " << bcast_vertex_id
+       << " but that ID is already assigned channel: " << vid_search->second
+       << std::endl;
+    throw std::runtime_error( ss.str() );
+  }
+#else
+  this->vertex_id_to_channel.insert( { bcast_vertex_id, channel } );
+#endif
+}
+*/

@@ -222,3 +222,52 @@ int cb_MPI_Alltoallv(const dumpi_alltoallv *prm,
   // Return OK
   return 0;
 }
+
+int cb_MPI_Bcast(const dumpi_bcast *prm, 
+                     uint16_t thread, 
+                     const dumpi_time *cpu, 
+                     const dumpi_time *wall, 
+                     const dumpi_perfinfo *perf, 
+                     void *uarg) 
+{
+  Trace* trace = (Trace*) uarg;
+  // Check that event data is OK 
+  
+  bool papi = trace->get_papi_flag();
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall);
+  }
+
+  dumpi_perfinfo counters;
+  dumpi_bcast event = *prm;
+  dumpi_time cpu_time = *cpu;
+  dumpi_time wall_time = *wall;
+
+  // A send always has an unambiguous channel at the call so just construct it
+  //Channel channel( trace->get_trace_rank(), event );
+
+  // Get the vertex ID for the vertex that will represent this event
+  size_t event_vertex_id = trace->get_next_vertex_id();
+
+  // Add the vertex to the event sequence
+  //trace->register_bcast( channel, event_vertex_id );
+
+  // Associate this send event with a timestamp
+  trace->register_dumpi_timestamp( wall_time );
+  if(papi){
+    counters = *perf;
+    trace->register_papi_struct(counters);
+  }
+
+  // Associate this barrier event with the MPI function call that generated it
+  trace->update_call_idx( "MPI_Bcast" );
+  trace->associate_event_with_call( "MPI_Bcast", event_vertex_id );
+
+/*
+*/
+  // Return OK
+  return 0;
+}
