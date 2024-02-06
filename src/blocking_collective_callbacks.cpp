@@ -253,7 +253,7 @@ int cb_MPI_Bcast(const dumpi_bcast *prm,
   size_t event_vertex_id = trace->get_next_vertex_id();
 
   // Add the vertex to the event sequence
-  //trace->register_bcast( channel, event_vertex_id );
+  trace->register_bcast( event_vertex_id );
 
   // Associate this send event with a timestamp
   trace->register_dumpi_timestamp( wall_time );
@@ -266,8 +266,6 @@ int cb_MPI_Bcast(const dumpi_bcast *prm,
   trace->update_call_idx( "MPI_Bcast" );
   trace->associate_event_with_call( "MPI_Bcast", event_vertex_id );
 
-/*
-*/
   // Return OK
   return 0;
 }

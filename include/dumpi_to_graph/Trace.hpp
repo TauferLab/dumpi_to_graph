@@ -68,7 +68,7 @@ public:
 
   void register_request( long request_id, Request& request );
 
-  void register_bcast( const Channel& channel, size_t send_vertex_id );
+  void register_bcast( size_t send_vertex_id );
 
   Channel determine_channel_of_irecv( const Request& request, 
                                       const dumpi_status* status );
