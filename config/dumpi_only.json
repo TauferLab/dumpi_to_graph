@@ -28,7 +28,9 @@
     "barrier_functions":
     [
         "MPI_Barrier",
-        "MPI_Allreduce"
+        "MPI_Allreduce",
+        "MPI_Reduce",
+        "MPI_BCast"
     ],
 
     "happens_before_orders":

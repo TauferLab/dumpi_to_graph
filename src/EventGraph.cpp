@@ -19,6 +19,7 @@
 // Boost
 #include "boost/serialization/unordered_map.hpp" 
 #include "boost/mpi.hpp"
+#include "boost/serialization/vector.hpp"
 
 // DUMPI
 #include "dumpi/common/argtypes.h"
@@ -49,6 +50,8 @@
 #else
    #error "Could not determine right MPI datatype for size_t"
 #endif
+
+#define REPORT_PROGRESS = 1;
 
 
 // Constructor must do the following:
@@ -92,7 +95,6 @@ EventGraph::EventGraph( const Configuration& config,
   std::cout << "Rank: " << global_rank 
             << " vertex IDs disambiguated" << std::endl;
 #endif
-
 
   merge_trace_data();
   comm_world.barrier();
@@ -148,7 +150,7 @@ EventGraph::EventGraph( const Configuration& config,
   std::cout << "Rank: " << global_rank 
             << " constructed message order edges" << std::endl;
 #endif
-
+  std::cout<<"Starting collective edges"<<std::endl;
   this->make_collective_edges();
 #ifdef PRINT_PROGRESS
   std::cout << "Rank: " << global_rank 
@@ -373,6 +375,8 @@ void EventGraph::merge_trace_data()
     // Merge in channel map data
     auto trace_channel_to_send_seq = kvp.second->get_channel_to_send_seq();
     auto trace_channel_to_recv_seq = kvp.second->get_channel_to_recv_seq();
+    auto trace_channel_to_root_seq = kvp.second->get_collective_channel_to_root_seq();
+    auto trace_channel_to_collective_send_seq = kvp.second->get_collective_channel_to_sender_seq();
     for ( auto kvp2 : trace_channel_to_send_seq ) {
       auto channel = kvp2.first;
       auto send_seq = kvp2.second;
@@ -383,12 +387,37 @@ void EventGraph::merge_trace_data()
       auto recv_seq = kvp2.second;
       this->channel_to_recv_seq.insert( { channel, recv_seq } );
     }
+    for ( auto kvp3 : trace_channel_to_root_seq ) {
+      auto channel = kvp3.first;
+      auto root_seq = kvp3.second;
+      this->collective_channel_to_root_seq.insert( { channel, root_seq } );
+    }
+    for ( auto kvp4 : trace_channel_to_collective_send_seq ) { // Local merging of collective sender sequence to channel
+      auto channel = kvp4.first;
+      auto sender_seq = kvp4.second;
+      auto find_channel = this->collective_channel_to_sender_seq.find(channel);
+      if (find_channel == this->collective_channel_to_sender_seq.end()){ // If not inserted already
+        std::vector<std::vector<size_t>> sender_seq_v;
+        sender_seq_v.push_back(sender_seq);
+        this->collective_channel_to_sender_seq.insert( { channel, sender_seq_v } );
+      }
+      else{
+        find_channel->second.push_back(sender_seq);
+      }
+    }
+    this->exchange_collective_sender_data();
     // Merge in vertex_id_to_channel data
     auto trace_vertex_id_to_channel = kvp.second->get_vertex_id_to_channel();
+    auto trace_vid_to_collective_channel = kvp.second->get_vid_to_collective_channel();
     for ( auto kvp2 : trace_vertex_id_to_channel ) {
       auto vertex_id = kvp2.first;
       auto channel = kvp2.second;
       this->vertex_id_to_channel.insert( { vertex_id, channel } );
+    }
+    for ( auto kvp2 : trace_vid_to_collective_channel){
+      auto vid = kvp2.first;
+      auto channel = kvp2.second;
+      this->vid_to_collective_channel.insert( { vid, channel } );
     }
     // Merge in event type, pid, wall-time, and generating function call  data
     auto event_seq = kvp.second->get_event_seq();
@@ -524,12 +553,69 @@ void EventGraph::make_message_order_edges()
 // TODO:
 void EventGraph::make_collective_edges()
 {
+  auto channel_to_root_seq = this->collective_channel_to_root_seq;
+  for(auto kvp: channel_to_root_seq){
+    auto sender_seq_it = this->collective_channel_to_sender_seq.find(kvp.first);
+    if(sender_seq_it != this->collective_channel_to_sender_seq.end()){
+      auto sender_seqs = sender_seq_it->second;
+      for(auto seq: sender_seqs){
+        assert( seq.size() == kvp.second.size());
+        for(int i = 0; i<seq.size();i++){
+          if(kvp.first.get_type()==1|| kvp.first.get_type()==3){ // Reduce and AllReduce
+            auto edge = std::make_pair( seq[i], kvp.second[i] );
+            this->message_order_edges.push_back(edge);
+          }
+          else if(kvp.first.get_type()==2 || kvp.first.get_type()==4){  // BCast and Alltoall
+            auto edge = std::make_pair(  kvp.second[i], seq[i] );
+            this->message_order_edges.push_back(edge);
+          }
+        }
+      }
+    }
+  }
 }
 
 //////////////// Helper functions for message edge construction ////////////////
 
 // Builds message edges between send and recv vertices that are owned by the 
 // same dumpi_to_graph process
+void EventGraph::exchange_collective_sender_data(){
+  int mpi_rc, rank, size;
+  boost::mpi::communicator comm_world;
+  mpi_rc = MPI_Comm_rank(comm_world, &rank);
+  mpi_rc = MPI_Comm_size(comm_world, &size);
+  std::unordered_map<CollectiveChannel, std::vector<std::vector<size_t>>, CollectiveChannelHash> curr_dat;
+  std::unordered_map<CollectiveChannel, std::vector<std::vector<size_t>>, CollectiveChannelHash> original_copy;
+  original_copy = this->collective_channel_to_sender_seq;
+  // Broadcast the data for each rank
+  for(int i = 0; i<size; i++){
+    if(rank==i){  // Sending process
+      curr_dat = original_copy;
+    }
+    broadcast(comm_world, curr_dat, i);
+    if(rank != i){  // Receiving processes
+      for(auto kvp : curr_dat){
+        auto entry = this->collective_channel_to_sender_seq.find(kvp.first);
+        if(entry != this->collective_channel_to_sender_seq.end()){  // Channel entry already exists; need to append data
+          entry->second.insert(entry->second.end(), kvp.second.begin(), kvp.second.end()); // Concatenating the send seq vectors
+        }
+        else{
+          this->collective_channel_to_sender_seq.insert({kvp.first, kvp.second});
+        }
+      }
+    }
+  }
+  std::cout<<"Sender data collected for rank: "<<rank<<std::endl;
+  for(auto i: this->collective_channel_to_sender_seq){
+    std::cout<<"#Channel streams for rank:"<<i.first.get_root()<<": "<<i.second.size()<<"Type: "<<i.first.get_type()<<'\n';
+    for(auto j: i.second){
+      for(auto k: j)
+        std::cout<<"Root: "<<i.first.get_root()<<' '<<k<<' ';
+    }
+  }
+  std::cout<<std::endl;
+}
+
 void EventGraph::exchange_local_message_matching_data()
 {
   int mpi_rc, rank;
@@ -696,7 +782,7 @@ void EventGraph::apply_scalar_logical_clock()
 {
   std::unordered_map<uint8_t, std::string> type_to_name =
   {
-    {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}
+    {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}, {5, "reduce"}
   };
 
   int mpi_rc, rank;
@@ -965,7 +1051,7 @@ void EventGraph::merge()
   if ( rank == 0 ) {
     std::unordered_map<uint8_t, std::string> type_to_name =
     {
-      {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}
+      {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}, {5, "reduce"}
     };
     int igraph_rc;
     // Turn on the igraph attribute handler 

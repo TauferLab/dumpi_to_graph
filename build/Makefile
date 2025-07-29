@@ -204,6 +204,33 @@ src/Channel.cpp.s:
 	$(MAKE) -f CMakeFiles/dumpi_to_graph.dir/build.make CMakeFiles/dumpi_to_graph.dir/src/Channel.cpp.s
 .PHONY : src/Channel.cpp.s
 
+src/CollectiveChannel.o: src/CollectiveChannel.cpp.o
+
+.PHONY : src/CollectiveChannel.o
+
+# target to build an object file
+src/CollectiveChannel.cpp.o:
+	$(MAKE) -f CMakeFiles/dumpi_to_graph.dir/build.make CMakeFiles/dumpi_to_graph.dir/src/CollectiveChannel.cpp.o
+.PHONY : src/CollectiveChannel.cpp.o
+
+src/CollectiveChannel.i: src/CollectiveChannel.cpp.i
+
+.PHONY : src/CollectiveChannel.i
+
+# target to preprocess a source file
+src/CollectiveChannel.cpp.i:
+	$(MAKE) -f CMakeFiles/dumpi_to_graph.dir/build.make CMakeFiles/dumpi_to_graph.dir/src/CollectiveChannel.cpp.i
+.PHONY : src/CollectiveChannel.cpp.i
+
+src/CollectiveChannel.s: src/CollectiveChannel.cpp.s
+
+.PHONY : src/CollectiveChannel.s
+
+# target to generate assembly for a file
+src/CollectiveChannel.cpp.s:
+	$(MAKE) -f CMakeFiles/dumpi_to_graph.dir/build.make CMakeFiles/dumpi_to_graph.dir/src/CollectiveChannel.cpp.s
+.PHONY : src/CollectiveChannel.cpp.s
+
 src/CommunicatorManager.o: src/CommunicatorManager.cpp.o
 
 .PHONY : src/CommunicatorManager.o
@@ -708,6 +735,9 @@ help:
 	@echo "... src/Channel.o"
 	@echo "... src/Channel.i"
 	@echo "... src/Channel.s"
+	@echo "... src/CollectiveChannel.o"
+	@echo "... src/CollectiveChannel.i"
+	@echo "... src/CollectiveChannel.s"
 	@echo "... src/CommunicatorManager.o"
 	@echo "... src/CommunicatorManager.i"
 	@echo "... src/CommunicatorManager.s"

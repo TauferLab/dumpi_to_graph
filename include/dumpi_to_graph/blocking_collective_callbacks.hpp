@@ -11,6 +11,13 @@ int cb_MPI_Barrier(const dumpi_barrier *prm,
                    const dumpi_perfinfo *perf, 
                    void *uarg);
 
+int cb_MPI_BCast(const dumpi_bcast *prm, 
+                  uint16_t thread, 
+                  const dumpi_time *cpu, 
+                  const dumpi_time *wall, 
+                  const dumpi_perfinfo *perf, 
+                  void *uarg);
+
 
 int cb_MPI_Reduce(const dumpi_reduce *prm, 
                   uint16_t thread, 

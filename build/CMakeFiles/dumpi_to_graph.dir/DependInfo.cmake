@@ -7,6 +7,7 @@ set(CMAKE_DEPENDS_CHECK_CXX
   "/home/exouser/ANACIN-X/submodules/dumpi_to_graph/src/CSMPI_Callstack.cpp" "/home/exouser/ANACIN-X/submodules/dumpi_to_graph/build/CMakeFiles/dumpi_to_graph.dir/src/CSMPI_Callstack.cpp.o"
   "/home/exouser/ANACIN-X/submodules/dumpi_to_graph/src/CSMPI_Trace.cpp" "/home/exouser/ANACIN-X/submodules/dumpi_to_graph/build/CMakeFiles/dumpi_to_graph.dir/src/CSMPI_Trace.cpp.o"
   "/home/exouser/ANACIN-X/submodules/dumpi_to_graph/src/Channel.cpp" "/home/exouser/ANACIN-X/submodules/dumpi_to_graph/build/CMakeFiles/dumpi_to_graph.dir/src/Channel.cpp.o"
+  "/home/exouser/ANACIN-X/submodules/dumpi_to_graph/src/CollectiveChannel.cpp" "/home/exouser/ANACIN-X/submodules/dumpi_to_graph/build/CMakeFiles/dumpi_to_graph.dir/src/CollectiveChannel.cpp.o"
   "/home/exouser/ANACIN-X/submodules/dumpi_to_graph/src/CommunicatorManager.cpp" "/home/exouser/ANACIN-X/submodules/dumpi_to_graph/build/CMakeFiles/dumpi_to_graph.dir/src/CommunicatorManager.cpp.o"
   "/home/exouser/ANACIN-X/submodules/dumpi_to_graph/src/Configuration.cpp" "/home/exouser/ANACIN-X/submodules/dumpi_to_graph/build/CMakeFiles/dumpi_to_graph.dir/src/Configuration.cpp.o"
   "/home/exouser/ANACIN-X/submodules/dumpi_to_graph/src/Debug.cpp" "/home/exouser/ANACIN-X/submodules/dumpi_to_graph/build/CMakeFiles/dumpi_to_graph.dir/src/Debug.cpp.o"

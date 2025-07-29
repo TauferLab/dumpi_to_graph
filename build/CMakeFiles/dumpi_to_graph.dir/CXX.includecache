@@ -142,6 +142,24 @@ boost/functional/hash.hpp
 boost/serialization/access.hpp
 ../include/dumpi_to_graph/boost/serialization/access.hpp
 
+../include/dumpi_to_graph/CollectiveChannel.hpp
+string
+-
+functional
+-
+vector
+-
+iostream
+-
+unordered_map
+-
+dumpi/common/argtypes.h
+../include/dumpi_to_graph/dumpi/common/argtypes.h
+boost/functional/hash.hpp
+../include/dumpi_to_graph/boost/functional/hash.hpp
+boost/serialization/access.hpp
+../include/dumpi_to_graph/boost/serialization/access.hpp
+
 ../include/dumpi_to_graph/CommunicatorManager.hpp
 unordered_map
 -
@@ -283,6 +301,8 @@ Request.hpp
 ../include/dumpi_to_graph/Request.hpp
 CommunicatorManager.hpp
 ../include/dumpi_to_graph/CommunicatorManager.hpp
+CollectiveChannel.hpp
+../include/dumpi_to_graph/CollectiveChannel.hpp
 
 ../include/dumpi_to_graph/Utilities.hpp
 string
@@ -656,6 +676,10 @@ CSMPI_Callstack.hpp
 Channel.hpp
 /home/exouser/ANACIN-X/submodules/dumpi_to_graph/src/Channel.hpp
 
+/home/exouser/ANACIN-X/submodules/dumpi_to_graph/src/CollectiveChannel.cpp
+CollectiveChannel.hpp
+/home/exouser/ANACIN-X/submodules/dumpi_to_graph/src/CollectiveChannel.hpp
+
 /home/exouser/ANACIN-X/submodules/dumpi_to_graph/src/CommunicatorManager.cpp
 CommunicatorManager.hpp
 /home/exouser/ANACIN-X/submodules/dumpi_to_graph/src/CommunicatorManager.hpp
@@ -763,6 +787,8 @@ boost/serialization/unordered_map.hpp
 /home/exouser/ANACIN-X/submodules/dumpi_to_graph/src/boost/serialization/unordered_map.hpp
 boost/mpi.hpp
 /home/exouser/ANACIN-X/submodules/dumpi_to_graph/src/boost/mpi.hpp
+boost/serialization/vector.hpp
+/home/exouser/ANACIN-X/submodules/dumpi_to_graph/src/boost/serialization/vector.hpp
 dumpi/common/argtypes.h
 /home/exouser/ANACIN-X/submodules/dumpi_to_graph/src/dumpi/common/argtypes.h
 dumpi/common/constants.h

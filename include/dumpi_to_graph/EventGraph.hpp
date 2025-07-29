@@ -76,6 +76,7 @@ private:
   void exchange_local_message_matching_data();
   void exchange_remote_message_matching_data();
   void exchange_message_matching_data_for_communicator( int comm_id );
+  void exchange_collective_sender_data();
 
 
   // Data structures that define the event graph itself 
@@ -108,6 +109,10 @@ private:
 
   std::unordered_map<size_t,std::pair<std::string,size_t>> vertex_id_to_fn_call;
   std::unordered_map<size_t,std::string> vertex_id_to_callstack;
+
+  std::unordered_map<size_t, CollectiveChannel> vid_to_collective_channel;
+  collective_channel_map collective_channel_to_root_seq; // Only populate if recipient of a collective call
+  std::unordered_map<CollectiveChannel, std::vector<std::vector<size_t>>, CollectiveChannelHash> collective_channel_to_sender_seq;  // Sending info to a collective call
 
 };
 

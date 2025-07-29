@@ -107,6 +107,100 @@ void Trace::register_barrier( size_t event_vertex_id )
   this->event_seq.push_back(4);
 }
 
+void Trace::register_alltoall( CollectiveChannel channel, size_t event_vertex_id ){
+  this->event_seq.push_back(8);
+    auto chan_search_r = this->collective_channel_to_root_seq.find(channel);
+    if(chan_search_r != this->collective_channel_to_root_seq.end()){
+      chan_search_r->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_root_seq.insert( { channel, seq } );
+    }
+    auto chan_search = this->collective_channel_to_sender_seq.find(channel);
+    if(chan_search != this->collective_channel_to_sender_seq.end()){
+      chan_search->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_sender_seq.insert({ channel, seq });
+    }
+  this->vid_to_collective_channel.insert( { event_vertex_id, channel } );
+}
+
+void Trace::register_bcast( CollectiveChannel channel, size_t event_vertex_id ){
+  this->event_seq.push_back(7);
+  // If trace is root
+  if(this->get_trace_rank() == channel.get_root()){
+    auto chan_search = this->collective_channel_to_root_seq.find(channel);
+    if(chan_search != this->collective_channel_to_root_seq.end()){
+      chan_search->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_root_seq.insert( { channel, seq } );
+    }
+  }
+  else{
+    auto chan_search = this->collective_channel_to_sender_seq.find(channel);
+    if(chan_search != this->collective_channel_to_sender_seq.end()){
+      chan_search->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_sender_seq.insert({ channel, seq });
+    }
+  }
+  this->vid_to_collective_channel.insert( { event_vertex_id, channel } );
+}
+
+void Trace::register_allreduce( CollectiveChannel channel, size_t event_vertex_id ){
+  this->event_seq.push_back(6);
+    auto chan_search_r = this->collective_channel_to_root_seq.find(channel);
+    if(chan_search_r != this->collective_channel_to_root_seq.end()){
+      chan_search_r->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_root_seq.insert( { channel, seq } );
+    }
+    auto chan_search = this->collective_channel_to_sender_seq.find(channel);
+    if(chan_search != this->collective_channel_to_sender_seq.end()){
+      chan_search->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_sender_seq.insert({ channel, seq });
+    }
+  this->vid_to_collective_channel.insert( { event_vertex_id, channel } );
+}
+
+void Trace::register_reduce( CollectiveChannel channel, size_t event_vertex_id ){
+  this->event_seq.push_back(5);
+  // If trace is root
+  if(this->get_trace_rank() == channel.get_root()){
+    auto chan_search = this->collective_channel_to_root_seq.find(channel);
+    if(chan_search != this->collective_channel_to_root_seq.end()){
+      chan_search->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_root_seq.insert( { channel, seq } );
+    }
+  }
+  else{
+    auto chan_search = this->collective_channel_to_sender_seq.find(channel);
+    if(chan_search != this->collective_channel_to_sender_seq.end()){
+      chan_search->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_sender_seq.insert({ channel, seq });
+    }
+  }
+  this->vid_to_collective_channel.insert( { event_vertex_id, channel } );
+}
+
 void Trace::register_initial_dumpi_timestamp( const dumpi_time& wall_time )
 {
   int32_t wall_time_start_sec = wall_time.start.sec;
@@ -541,6 +635,22 @@ void Trace::apply_vertex_id_offset( size_t offset )
     }
     this->channel_to_recv_seq[ kvp.first ] = new_vertex_ids;
   }
+  // Updating collective roots
+  for ( auto kvp : this->collective_channel_to_root_seq){
+    std::vector<size_t> new_vertex_ids;
+    for( int i=0; i<kvp.second.size(); i++ ){
+      new_vertex_ids.push_back( kvp.second[i] + offset );
+    }
+    this->collective_channel_to_root_seq[kvp.first] = new_vertex_ids;
+  }
+  // Updating collective senders
+  for ( auto kvp : this->collective_channel_to_sender_seq){
+    std::vector<size_t> new_vertex_ids;
+    for( int i=0; i<kvp.second.size(); i++ ){
+      new_vertex_ids.push_back( kvp.second[i] + offset );
+    }
+    this->collective_channel_to_sender_seq[kvp.first] = new_vertex_ids;
+  }
 }
 
 
@@ -646,6 +756,18 @@ channel_map Trace::get_channel_to_send_seq() const
   return this->channel_to_send_seq;
 }
 
+collective_channel_map Trace::get_collective_channel_to_root_seq() const{
+  return this->collective_channel_to_root_seq;
+}
+
+collective_channel_map Trace::get_collective_channel_to_sender_seq() const{
+  return this->collective_channel_to_sender_seq;
+}
+
+std::unordered_map<size_t, CollectiveChannel> Trace::get_vid_to_collective_channel() const{
+  return this->vid_to_collective_channel;
+}
+
 std::unordered_map<long,Request> Trace::get_id_to_request() const
 {
   return this->id_to_request;
@@ -660,7 +782,7 @@ void Trace::report_event_seq()
 {
   std::unordered_map<uint8_t, std::string> type_to_name =
   {
-    {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}
+    {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}, {5, "reduce"}, {6, "allreduce"}, {7, "bcast"}, {8, "alltoall"}
   };
   std::cout << "Event sequence for trace rank: " 
             << this->get_trace_rank() << std::endl;

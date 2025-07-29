@@ -82,7 +82,7 @@ endif()
 
 
 
-set(CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES "/opt/spack/opt/spack/linux-ubuntu20.04-zen2/gcc-9.4.0/openmpi-4.1.3-p2ymcjo3whmz5w6tlmwlkqrxx6wpx7ic/include;/opt/spack/var/spack/environments/anacin_spack_env/.spack-env/view/include/eigen3;/usr/include/c++/9;/usr/include/x86_64-linux-gnu/c++/9;/usr/include/c++/9/backward;/usr/lib/gcc/x86_64-linux-gnu/9/include;/usr/local/include;/usr/include/x86_64-linux-gnu;/usr/include")
+set(CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES "/opt/spack/opt/spack/linux-ubuntu20.04-zen2/gcc-9.4.0/openmpi-4.1.3-p2ymcjo3whmz5w6tlmwlkqrxx6wpx7ic/include;/usr/include/c++/9;/usr/include/x86_64-linux-gnu/c++/9;/usr/include/c++/9/backward;/usr/lib/gcc/x86_64-linux-gnu/9/include;/usr/local/include;/usr/include/x86_64-linux-gnu;/usr/include")
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "mpi;stdc++;m;gcc_s;gcc;pthread;c;gcc_s;gcc")
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "/opt/spack/opt/spack/linux-ubuntu20.04-zen2/gcc-9.4.0/openmpi-4.1.3-p2ymcjo3whmz5w6tlmwlkqrxx6wpx7ic/lib;/opt/spack/opt/spack/linux-ubuntu20.04-zen2/gcc-9.4.0/hwloc-2.7.1-gkh5sihr3q74ud7xx4n44fguxd6nnozy/lib;/opt/spack/opt/spack/linux-ubuntu20.04-zen2/gcc-9.4.0/libevent-2.1.12-giolx4jv3oplmm2mzaweba6h4ipvxhdp/lib;/opt/spack/opt/spack/linux-ubuntu20.04-zen2/gcc-9.4.0/pmix-4.1.2-wbys7yskql2mvig4y7gfcnovo5hafvqb/lib;/usr/lib/gcc/x86_64-linux-gnu/9;/usr/lib/x86_64-linux-gnu;/usr/lib;/lib/x86_64-linux-gnu;/lib")
 set(CMAKE_CXX_IMPLICIT_LINK_FRAMEWORK_DIRECTORIES "")

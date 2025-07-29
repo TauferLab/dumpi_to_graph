@@ -2,6 +2,7 @@ file(REMOVE_RECURSE
   "CMakeFiles/dumpi_to_graph.dir/src/CSMPI_Callstack.cpp.o"
   "CMakeFiles/dumpi_to_graph.dir/src/CSMPI_Trace.cpp.o"
   "CMakeFiles/dumpi_to_graph.dir/src/Channel.cpp.o"
+  "CMakeFiles/dumpi_to_graph.dir/src/CollectiveChannel.cpp.o"
   "CMakeFiles/dumpi_to_graph.dir/src/CommunicatorManager.cpp.o"
   "CMakeFiles/dumpi_to_graph.dir/src/Configuration.cpp.o"
   "CMakeFiles/dumpi_to_graph.dir/src/Debug.cpp.o"
