@@ -107,6 +107,100 @@ void Trace::register_barrier( size_t event_vertex_id )
   this->event_seq.push_back(4);
 }
 
+void Trace::register_alltoall( CollectiveChannel channel, size_t event_vertex_id ){
+  this->event_seq.push_back(8);
+    auto chan_search_r = this->collective_channel_to_root_seq.find(channel);
+    if(chan_search_r != this->collective_channel_to_root_seq.end()){
+      chan_search_r->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_root_seq.insert( { channel, seq } );
+    }
+    auto chan_search = this->collective_channel_to_sender_seq.find(channel);
+    if(chan_search != this->collective_channel_to_sender_seq.end()){
+      chan_search->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_sender_seq.insert({ channel, seq });
+    }
+  this->vid_to_collective_channel.insert( { event_vertex_id, channel } );
+}
+
+void Trace::register_bcast( CollectiveChannel channel, size_t event_vertex_id ){
+  this->event_seq.push_back(7);
+  // If trace is root
+  if(this->get_trace_rank() == channel.get_root()){
+    auto chan_search = this->collective_channel_to_root_seq.find(channel);
+    if(chan_search != this->collective_channel_to_root_seq.end()){
+      chan_search->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_root_seq.insert( { channel, seq } );
+    }
+  }
+  else{
+    auto chan_search = this->collective_channel_to_sender_seq.find(channel);
+    if(chan_search != this->collective_channel_to_sender_seq.end()){
+      chan_search->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_sender_seq.insert({ channel, seq });
+    }
+  }
+  this->vid_to_collective_channel.insert( { event_vertex_id, channel } );
+}
+
+void Trace::register_allreduce( CollectiveChannel channel, size_t event_vertex_id ){
+  this->event_seq.push_back(6);
+    auto chan_search_r = this->collective_channel_to_root_seq.find(channel);
+    if(chan_search_r != this->collective_channel_to_root_seq.end()){
+      chan_search_r->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_root_seq.insert( { channel, seq } );
+    }
+    auto chan_search = this->collective_channel_to_sender_seq.find(channel);
+    if(chan_search != this->collective_channel_to_sender_seq.end()){
+      chan_search->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_sender_seq.insert({ channel, seq });
+    }
+  this->vid_to_collective_channel.insert( { event_vertex_id, channel } );
+}
+
+void Trace::register_reduce( CollectiveChannel channel, size_t event_vertex_id ){
+  this->event_seq.push_back(5);
+  // If trace is root
+  if(this->get_trace_rank() == channel.get_root()){
+    auto chan_search = this->collective_channel_to_root_seq.find(channel);
+    if(chan_search != this->collective_channel_to_root_seq.end()){
+      chan_search->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_root_seq.insert( { channel, seq } );
+    }
+  }
+  else{
+    auto chan_search = this->collective_channel_to_sender_seq.find(channel);
+    if(chan_search != this->collective_channel_to_sender_seq.end()){
+      chan_search->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_sender_seq.insert({ channel, seq });
+    }
+  }
+  this->vid_to_collective_channel.insert( { event_vertex_id, channel } );
+}
+
 void Trace::register_initial_dumpi_timestamp( const dumpi_time& wall_time )
 {
   int32_t wall_time_start_sec = wall_time.start.sec;
@@ -145,6 +239,7 @@ void Trace::register_papi_struct(const dumpi_perfinfo& counters)
 // Helper for updating channel_to_recv_seq and vertex_id_to_channel
 void Trace::register_recv( const Channel& channel, size_t recv_vertex_id )
 {
+  // std::cout << "JACK_ register_recv" << std::endl;
   // First update the sequence of event types
   this->event_seq.push_back(1);
   // First update the mapping from channels to sequences of recv vertex IDs
@@ -179,6 +274,7 @@ void Trace::register_recv( const Channel& channel, size_t recv_vertex_id )
 // Helper for updating channel_to_send_seq and vertex_id_to_channel
 void Trace::register_send( const Channel& channel, size_t send_vertex_id )
 {
+  // std::cout << "JACK_ register_send con: " << channel << std::endl;
   // First update the sequence of event types
   this->event_seq.push_back(0);
   // Next update the mapping from channels to sequences of send vertex IDs
@@ -232,23 +328,45 @@ void Trace::register_finalize()
 
 
 // Helper for updating id_to_request
-void Trace::register_request( long request_id, const Request& request )
+void Trace::register_request( long request_id, Request& request )
 { 
   auto search = this->id_to_request.find( request_id );
+  // std::cout << "JACK::Adding request with ID: " << request_id << std::endl;
+  
   // Case 1: Request not already tracked, insert
   if ( search == this->id_to_request.end() ) {
     this->id_to_request.insert( { request_id, request } );
   } 
   // Case 2: Request already tracked. Error. 
   else {
+    // TODO: JACK_ add validation to compare the type of the request
     auto prev_request = search->second; 
-    std::stringstream ss;
-    ss << "dumpi_to_graph rank: " << this->get_dumpi_to_graph_rank()
-       << " trying to map request ID: " << request_id 
-       << " to request: " << request
-       << " but request ID is already mapped to request: " << prev_request 
-       << std::endl;
-    throw std::runtime_error( ss.str() );
+    
+    if(prev_request.get_type() == request.get_type()){ // request is the same
+      // std::cout << "type of request: " << prev_request.get_type() << std::endl; // JACK_
+      std::stringstream ss;
+      ss << "dumpi_to_graph rank: " << this->get_dumpi_to_graph_rank()
+        << " trying to map request ID: " << request_id 
+        << " to request: " << request
+        << " but request ID is already mapped to request: " << prev_request 
+        << std::endl;
+      throw std::runtime_error( ss.str() );
+    }
+    else{
+      // this->id_to_request.insert( { request_id, request } );
+      // JACK_
+      request.renew_id();
+      std::cout << "JACK::Adding request with ID: " << request.get_id() << " already existed ID: " << request_id << " rank: " << this->get_trace_rank() << std::endl;
+
+      auto inserted = this->id_to_request.insert( { request.get_id(), request } );
+      // this->report_id_to_request();
+      // std::stringstream ss;
+      // std::cout << "JACK_ Inserted: " << inserted.first->second
+      //           << ";; Prev: " << prev_request
+      //           << ";; actual: " << request << std::endl;
+      // throw std::runtime_error( ss.str() );
+
+    }
   }
 }
 
@@ -367,7 +485,8 @@ void Trace::complete_request( long request_id,
                               const dumpi_time cpu_time,
                               const dumpi_time wall_time,
                               const dumpi_perfinfo *ctrs,
-                              std::string matching_fn_call )
+                              std::string matching_fn_call,
+                              long event_num)
 {
   // Generally speaking, a class of MPI functions called "matching functions"
   // are called to try to complete requests. Requests may be generated by 
@@ -376,10 +495,12 @@ void Trace::complete_request( long request_id,
   // MPI_Rget, and various others. The outcomes of handling these requests are
   // modeled differently in the event graph, so the first thing we have to do
   // is look up what kind of request we are dealing with.
+  // TODO: verify insertion
   auto request_search = this->id_to_request.find( request_id );
   int request_type;
   Request request;
   // Case 1: Request is currently tracked, so we can get its type and proceed
+  // std::cerr << "JACK_ Request search: " <<  request_search->second.get_channel() << std::endl;
   if ( request_search != this->id_to_request.end() ) {
     request = request_search->second;
     request_type = request.get_type();
@@ -390,9 +511,9 @@ void Trace::complete_request( long request_id,
   else {
     std::stringstream ss;
     ss << "Tried to handle request corresponding to request ID: " 
-       << request_id << " but no such request exists." << std::endl;
-    std::cerr << "Current id_to_request map is:" << std::endl;
-    this->report_id_to_request();
+       << request_id << " but no such request exists." << " rank: " << this->get_trace_rank() << " event: " << event_num << std::endl;
+    // std::cerr << "Current id_to_request map is:" << std::endl;
+    // this->report_id_to_request();
     throw std::runtime_error( ss.str() );
   }
 
@@ -400,10 +521,13 @@ void Trace::complete_request( long request_id,
   // specialized request completion handler.
   // Case 1: request_type == 0 --> MPI_Isend
   if ( request_type == 0 ) {
+    // std::cout << "JACK_ isendRequest" << std::endl;
     complete_isend_request( request );
+
   }
   // Case 2: request_type == 1 --> MPI_Irecv
   else if ( request_type == 1 ) {
+    // std::cout << "JACK_ irecvRequest" << std::endl;
     complete_irecv_request( request, 
                             status_ptr, 
                             cpu_time, 
@@ -414,14 +538,18 @@ void Trace::complete_request( long request_id,
   // Case 3+: FIXME: We don't handle persistent communication requests or 
   // one-sided communication just yet
   else {
+    // std::cout << "JACK_ case 3+" << std::endl;
+
     std::stringstream ss;
     ss << "Handling completion of persistent communication requests and "
-       << "one-sided communication requests is not implemented yet." << std::endl;
+       << "one-sided communication requests is not implemented yet. Request : " << request << " type: " << request_type << std::endl;
     throw std::runtime_error( ss.str() );
   }
 
   // No matter what kind of request we are handling, once it is handled it must
   // be removed from the id_to_request map.
+  // std::cout << "JACK_ Erasing id:  " << request_id << std::endl;
+
   this->id_to_request.erase( request_id );
 }
 
@@ -506,6 +634,22 @@ void Trace::apply_vertex_id_offset( size_t offset )
       new_vertex_ids.push_back( kvp.second[i] + offset );
     }
     this->channel_to_recv_seq[ kvp.first ] = new_vertex_ids;
+  }
+  // Updating collective roots
+  for ( auto kvp : this->collective_channel_to_root_seq){
+    std::vector<size_t> new_vertex_ids;
+    for( int i=0; i<kvp.second.size(); i++ ){
+      new_vertex_ids.push_back( kvp.second[i] + offset );
+    }
+    this->collective_channel_to_root_seq[kvp.first] = new_vertex_ids;
+  }
+  // Updating collective senders
+  for ( auto kvp : this->collective_channel_to_sender_seq){
+    std::vector<size_t> new_vertex_ids;
+    for( int i=0; i<kvp.second.size(); i++ ){
+      new_vertex_ids.push_back( kvp.second[i] + offset );
+    }
+    this->collective_channel_to_sender_seq[kvp.first] = new_vertex_ids;
   }
 }
 
@@ -612,6 +756,18 @@ channel_map Trace::get_channel_to_send_seq() const
   return this->channel_to_send_seq;
 }
 
+collective_channel_map Trace::get_collective_channel_to_root_seq() const{
+  return this->collective_channel_to_root_seq;
+}
+
+collective_channel_map Trace::get_collective_channel_to_sender_seq() const{
+  return this->collective_channel_to_sender_seq;
+}
+
+std::unordered_map<size_t, CollectiveChannel> Trace::get_vid_to_collective_channel() const{
+  return this->vid_to_collective_channel;
+}
+
 std::unordered_map<long,Request> Trace::get_id_to_request() const
 {
   return this->id_to_request;
@@ -626,7 +782,7 @@ void Trace::report_event_seq()
 {
   std::unordered_map<uint8_t, std::string> type_to_name =
   {
-    {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}
+    {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}, {5, "reduce"}, {6, "allreduce"}, {7, "bcast"}, {8, "alltoall"}
   };
   std::cout << "Event sequence for trace rank: " 
             << this->get_trace_rank() << std::endl;
@@ -685,8 +841,9 @@ void Trace::report_channel_to_recv_seq()
 
 void Trace::report_id_to_request()
 {
-  std::cout << "Request ID to request map for trace rank: " 
+  std::cout << "ID_to_request map for trace rank: " 
             << this->get_trace_rank() <<std::endl;
+
   for ( auto kvp : this->id_to_request ) {
     std::cout << "Request ID: " << kvp.first 
               << " Request Object: " << kvp.second << std::endl;

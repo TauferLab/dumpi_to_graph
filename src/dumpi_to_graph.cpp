@@ -20,6 +20,10 @@
 #include "CommunicatorManager.hpp"
 #include "CSMPI_Trace.hpp"
 
+#define REPORT_PROGRESS = 1;
+#define SANITY_CHECK = 1;
+#define REPORT_TIMINGS = 1;
+
 int main(int argc, char** argv) 
 {
   // Set up MPI
@@ -42,6 +46,7 @@ int main(int argc, char** argv)
   // Ensure that all dumpi_to_graph processes have the Configuration 
   mpi_rc = MPI_Barrier(MPI_COMM_WORLD);
 
+#define REPORT_PROGRESS_MINIMAL = 1;
 #ifdef REPORT_PROGRESS_MINIMAL
   if ( dumpi_to_graph_rank == REPORTING_RANK ) {
     std::cout << config << std::endl;
@@ -107,10 +112,12 @@ int main(int argc, char** argv)
       }   
       // Read the stream of MPI events
       int undumpi_rc;
-      bool print_progress = false;
+      bool print_progress = true;
       undumpi_rc = undumpi_read_stream( profile, &callbacks, trace_ptr, print_progress );
+      //for(auto k: trace_ptr->get_event_seq()){}
       // Close tracefile
       undumpi_close( profile );
+      
       // Associate the trace file representation to its trace file
       rank_to_trace.insert( { trace_file_rank, trace_ptr } );
 #ifdef REPORT_TIMINGS

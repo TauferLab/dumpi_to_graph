@@ -20,6 +20,7 @@
 #include "Channel.hpp"
 #include "Request.hpp"
 #include "CommunicatorManager.hpp"
+#include "CollectiveChannel.hpp"
 
 class Trace
 {
@@ -45,6 +46,7 @@ public:
   std::vector<double> get_wall_time_seq() const;
   std::vector<std::string> get_perf_counter_seq() const;
   std::unordered_map<size_t,Channel> get_vertex_id_to_channel() const;
+  
 
   CommunicatorManager& get_comm_manager();
 
@@ -55,6 +57,10 @@ public:
   void register_send( const Channel& channel, size_t send_vertex_id );
   void register_init(std::string init_fn);
   void register_finalize();
+  void register_reduce( CollectiveChannel channel, size_t event_vertex_id);
+  void register_allreduce( CollectiveChannel channel, size_t event_vertex_id );
+  void register_bcast( CollectiveChannel channel, size_t event_vertex_id );
+  void register_alltoall( CollectiveChannel channel, size_t event_vertex_id );
   
   void register_comm_split( int parent_comm_id,
                             int new_comm_id, 
@@ -66,7 +72,7 @@ public:
 
   void register_papi_struct(const dumpi_perfinfo& counters);
 
-  void register_request( long request_id, const Request& request );
+  void register_request( long request_id, Request& request );
 
   Channel determine_channel_of_irecv( const Request& request, 
                                       const dumpi_status* status );
@@ -81,7 +87,8 @@ public:
                          const dumpi_time cpu_time,
                          const dumpi_time wall_time,
                          const dumpi_perfinfo *ctrs,
-                         std::string matching_fn_call );
+                         std::string matching_fn_call,
+                         long event_num=-1 );
 
   void complete_isend_request( Request request );
   void complete_irecv_request( Request request,
@@ -95,6 +102,9 @@ public:
 
   channel_map get_channel_to_recv_seq() const;
   channel_map get_channel_to_send_seq() const;
+  collective_channel_map get_collective_channel_to_root_seq() const;
+  collective_channel_map get_collective_channel_to_sender_seq() const;
+  std::unordered_map<size_t, CollectiveChannel> get_vid_to_collective_channel() const;
   std::unordered_map<long,Request> get_id_to_request() const;
 
   // Convenience functions for printing representations of the trace
@@ -148,6 +158,7 @@ private:
   // 2 := init ( MPI_Init and MPI_Init_thread )
   // 3 := finalize ( MPI_Finalize )
   // 4 := barrier ( MPI_Barrier )
+  // 5 := reduce ( MPI_Reduce ) <to be implemented>
   std::vector<uint8_t> event_seq;
 
   // For keeping track of which MPI function generated which event(s)
@@ -167,6 +178,11 @@ private:
   std::unordered_map<long, Request> id_to_request;
   std::unordered_map<Channel, std::vector<size_t>, ChannelHash> channel_to_send_seq;
   std::unordered_map<Channel, std::vector<size_t>, ChannelHash> channel_to_recv_seq;
+
+  //COLLECTIVE CHANNEL DS (BETA STATE)
+  std::unordered_map<size_t, CollectiveChannel> vid_to_collective_channel;
+  collective_channel_map collective_channel_to_root_seq; // Only populate if recipient of a collective call
+  collective_channel_map collective_channel_to_sender_seq;  // Sending info to a collective call
 
   CommunicatorManager comm_manager; 
 

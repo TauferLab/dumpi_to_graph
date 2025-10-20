@@ -15,6 +15,10 @@ void set_callbacks(libundumpi_callbacks* callbacks,
 {
   assert(callbacks != NULL); 
 
+  for(auto s: config.get_barrier_fns()){
+    std::cout<<"CHECKING AVAILABLE MPI FUNCTIONS: "<<s<<std::endl;
+  }
+
   // First, we always toggle on the callbacks for MPI_Init, MPI_Init_thread,
   // and MPI_Finalize. This is necessary to allow the event graph construction
   // to fail gracefully if given insufficient data to construct the graph 
@@ -26,7 +30,7 @@ void set_callbacks(libundumpi_callbacks* callbacks,
   // Toggle on callbacks for all other functions specified in configuration
   for ( auto fn : config.get_mpi_functions() ) {
     // Blocking point-to-point communication functions
-    if      (fn == "MPI_Send")         { callbacks->on_send         = cb_MPI_Send;         }
+    if      (fn == "MPI_Send")         { callbacks->on_send         = cb_MPI_Send;       }
     else if (fn == "MPI_Recv")         { callbacks->on_recv         = cb_MPI_Recv;         }
     // Nonblocking point-to-point communication functions
     else if (fn == "MPI_Isend")        { callbacks->on_isend        = cb_MPI_Isend;        }
@@ -53,6 +57,7 @@ void set_callbacks(libundumpi_callbacks* callbacks,
     else if (fn == "MPI_Comm_rank")    { callbacks->on_comm_rank    = cb_MPI_Comm_rank;    }
     else if (fn == "MPI_Comm_size")    { callbacks->on_comm_size    = cb_MPI_Comm_size;    }
     else if (fn == "MPI_Comm_split")   { callbacks->on_comm_split   = cb_MPI_Comm_split;   }
+    // else if (fn == "MPI_Allreduce")    { callbacks->on_allreduce    = cb_MPI_Allreduce;    }
   }
   
   // Toggle on callbacks for functions that will be modeled as barriers
@@ -62,6 +67,7 @@ void set_callbacks(libundumpi_callbacks* callbacks,
     else if (fn == "MPI_Allreduce")    { callbacks->on_allreduce    = cb_MPI_Allreduce;    }
     else if (fn == "MPI_Alltoall")     { callbacks->on_alltoall     = cb_MPI_Alltoall;     }
     else if (fn == "MPI_Alltoallv")    { callbacks->on_alltoallv    = cb_MPI_Alltoallv;    }
+    else if (fn == "MPI_BCast")    { callbacks->on_bcast    = cb_MPI_BCast;    }
   }
 }
 
