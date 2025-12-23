@@ -134,6 +134,9 @@ EventGraph::EventGraph( const Configuration& config,
   comm_world.barrier();
 #endif
 
+// Disambiguating collective channel maps
+this->disambiguate_collective_channel_maps();
+
   // Construct edges
   this->make_program_order_edges();
   comm_world.barrier();
@@ -293,6 +296,67 @@ CommunicatorManager EventGraph::exchange_user_defined_comm_data()
   comm_manager.set_comm_to_translator( comm_to_translator );
 
   return comm_manager; 
+}
+
+void EventGraph::disambiguate_collective_channel_maps()
+{
+  auto global_ranks_map = this->comm_manager.get_comm_to_global_ranks();
+  for(auto& kvp: this->rank_to_trace){
+    std::cout<<"Appending global ranks for rank: "<<kvp.first<<std::endl;
+    auto trace_ptr = kvp.second;
+    auto& channel_to_root_seq = trace_ptr->get_collective_channel_to_root_seq();
+    auto& channel_to_sender_seq = trace_ptr->get_collective_channel_to_sender_seq();
+    collective_channel_map updt_root_map;
+    collective_channel_map updt_sender_map;
+    //auto& vid_to_channel = trace_ptr->get_vid_to_collective_channel();
+    // Adjusting collective channels for root sequences
+    //std::cout<<"Adjusting root sequence maps for rank: "<<kvp.first<<std::endl;
+    // Check if comm_to_global_ranks is populated
+    //std::cout<<"Number of elements in global rank map: "<<global_ranks_map.size()<<std::endl;
+    //std::cout<<"Channel to root seq size: "<<channel_to_root_seq.size()<<std::endl;
+    for(auto kvp1: channel_to_root_seq){
+      auto it = global_ranks_map.find(kvp1.first.get_comm());
+      if(it == global_ranks_map.end()){
+        std::cout<<"Not found comm: "<<kvp1.first.get_comm()<<std::endl;
+        std::cout<<"Available keys in this comm dict:"<<std::endl;
+        for(auto k: global_ranks_map){
+          std::cout<<"Comm Key "<<k.first<<std::endl;
+        }
+      }
+      else{
+        //std::cout<<"Comm Found: "<<kvp1.first.get_comm()<<std::endl;
+      }
+      std::vector<int> global_ranks = global_ranks_map.at(kvp1.first.get_comm());
+      //std::cout<<"Global vec retrieved"<<std::endl;
+      CollectiveChannel new_chan(kvp1.first.get_root(), kvp1.first.get_comm(), kvp1.first.get_type());
+      new_chan.set_global_ranks(global_ranks);
+      CollectiveChannel del_chan(kvp1.first.get_root(), kvp1.first.get_comm(), kvp1.first.get_type());
+      //auto kvp_sec = kvp1.second;
+      
+      //size_t removed = channel_to_root_seq.erase(del_chan);
+      //std::cout<<"Erased elements "<<removed<<std::endl;
+      updt_root_map.insert({new_chan, kvp1.second});
+    }
+    //std::cout<<"Adjusting sender sequence maps for rank: "<<kvp.first<<std::endl;
+    for(auto kvp1: channel_to_sender_seq){
+      std::vector<int> global_ranks = global_ranks_map.at(kvp1.first.get_comm());
+      CollectiveChannel new_chan(kvp1.first.get_root(), kvp1.first.get_comm(), kvp1.first.get_type());
+      new_chan.set_global_ranks(global_ranks);
+      //CollectiveChannel del_chan(kvp1.first.get_root(), kvp1.first.get_comm(), kvp1.first.get_type());
+      //auto kvp_sec = kvp1.second;
+      //channel_to_sender_seq.erase(del_chan);
+      updt_sender_map.insert({new_chan, kvp1.second});
+    }
+    trace_ptr->set_collective_channel_to_root_seq(updt_root_map);
+    trace_ptr->set_collective_channel_to_sender_seq(updt_sender_map);
+    std::cout<<"Starting trace collective disambiguation for rank: "<<kvp.first<<std::endl;
+    trace_ptr->disambiguate_trace_collective_maps();
+    // vid map might not be required. Update only if conflict caused in future. Also update trace function: disambiguate_trace_collective_maps to update the vid map
+    /*for(auto& kvp1: vid_to_channel){
+      std::vector<int> global_ranks = global_ranks_map.at(kvp1.second);
+      kvp1.first.set_global_ranks(global_ranks);
+    }*/
+  }
 }
 
 
@@ -559,14 +623,19 @@ void EventGraph::make_collective_edges()
     if(sender_seq_it != this->collective_channel_to_sender_seq.end()){
       auto sender_seqs = sender_seq_it->second;
       for(auto seq: sender_seqs){
-        assert( seq.size() == kvp.second.size());
-        for(int i = 0; i<seq.size();i++){
-          if(kvp.first.get_type()==1|| kvp.first.get_type()==3){ // Reduce and AllReduce
-            auto edge = std::make_pair( seq[i], kvp.second[i] );
+        //assert( seq.size() == kvp.second.size());
+        if(seq.size() != kvp.second.size()){    // FIXME!!!: Sometimes seq size diff from kvp.second, make an exception case
+          std::cout<<"KVP Second: "<<kvp.second.size()<<" Seq: "<<seq.size()<<std::endl;
+          std::cout<<"Communicator: "<<kvp.first.get_comm()<<std::endl;
+          continue;
+        }
+        for(int i = 0; i<kvp.second.size();i++){
+          if(kvp.first.get_type()==1 || kvp.first.get_type()==3){ // Reduce and AllReduce
+            auto edge = std::make_pair( seq.at(i), kvp.second.at(i) );
             this->message_order_edges.push_back(edge);
           }
           else if(kvp.first.get_type()==2 || kvp.first.get_type()==4){  // BCast and Alltoall
-            auto edge = std::make_pair(  kvp.second[i], seq[i] );
+            auto edge = std::make_pair(  kvp.second.at(i), seq.at(i) );
             this->message_order_edges.push_back(edge);
           }
         }
@@ -605,7 +674,7 @@ void EventGraph::exchange_collective_sender_data(){
       }
     }
   }
-  std::cout<<"Sender data collected for rank: "<<rank<<std::endl;
+  /*std::cout<<"Sender data collected for rank: "<<rank<<std::endl;
   for(auto i: this->collective_channel_to_sender_seq){
     std::cout<<"#Channel streams for rank:"<<i.first.get_root()<<": "<<i.second.size()<<"Type: "<<i.first.get_type()<<'\n';
     for(auto j: i.second){
@@ -613,7 +682,7 @@ void EventGraph::exchange_collective_sender_data(){
         std::cout<<"Root: "<<i.first.get_root()<<' '<<k<<' ';
     }
   }
-  std::cout<<std::endl;
+  std::cout<<std::endl;*/
 }
 
 void EventGraph::exchange_local_message_matching_data()

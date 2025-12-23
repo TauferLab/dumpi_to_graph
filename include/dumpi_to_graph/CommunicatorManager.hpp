@@ -63,6 +63,8 @@ public:
   
   std::unordered_map<int,std::unordered_map<int,int>> get_comm_to_rank_to_key() const;
   std::unordered_map<int,std::unordered_map<int,int>> get_comm_to_global_rank_to_comm_rank() const;
+
+  std::unordered_map<dumpi_comm, std::vector<int>> get_comm_to_global_ranks();
   // Also needed for aggregation
   CommunicatorManager operator=( const CommunicatorManager& rhs );
   // Convenience printer
@@ -82,6 +84,8 @@ private:
 
   std::unordered_map<int, std::unordered_map<int,int>> comm_to_global_rank_to_comm_rank;
 
+  std::unordered_map<dumpi_comm, std::vector<int>> comm_to_global;
+
   friend class boost::serialization::access;
   template <typename Archive>
   void serialize( Archive& ar, const unsigned int version ) 
@@ -94,5 +98,7 @@ private:
     ar & comm_to_translator;
   }
 };
+
+
 
 #endif // D2G_COMMUNICATOR_MANAGER_H

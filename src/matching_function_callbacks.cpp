@@ -100,7 +100,7 @@ int cb_MPI_Waitany(const dumpi_waitany *prm,
      std::cerr << "Misaligned Pluto Output in Waitany " << call_type << " " << event_num << " ID: " << req_addr << " rank: " << trace->get_trace_rank() << std::endl;
   }
   else{
-    std::cout << "JACK_ it is aligned for waitnay" << std::endl;
+     //std::cout << "JACK_ it is aligned for waitnay" << std::endl;
   }
      
   long request_id = *(event.requests + request_idx);
@@ -222,12 +222,10 @@ int cb_MPI_Waitall(const dumpi_waitall *prm,
     long request_id = *requests_ptr;
 
     trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
-    if(call_type != 2){
+    if(call_type != 2 && call_type != 6){
       std::cerr << "Misaligned Pluto Output in Waitall " << call_type << " " << event_num << std::endl;
     } 
-  else{
-    // std::cout << "JACK_ it is aligned for waitall" << std::endl;
-  } 
+  if(call_type == 2){
 
 
     trace->complete_request( req_addr, 
@@ -236,6 +234,7 @@ int cb_MPI_Waitall(const dumpi_waitall *prm,
                              wall_time,
                              perf,
                              "MPI_Waitall" );
+    }
     statuses_ptr++;
     requests_ptr++;
   }

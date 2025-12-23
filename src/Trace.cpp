@@ -6,6 +6,7 @@
 #include <vector>
 #include <set>
 #include <unordered_map>
+#include <algorithm>
 
 // DUMPI
 #include "dumpi/common/argtypes.h" 
@@ -535,6 +536,7 @@ void Trace::complete_request( long request_id,
                             ctrs,
                             matching_fn_call );
   }
+  // FIXME: Add handling of null wait requests
   // Case 3+: FIXME: We don't handle persistent communication requests or 
   // one-sided communication just yet
   else {
@@ -756,11 +758,11 @@ channel_map Trace::get_channel_to_send_seq() const
   return this->channel_to_send_seq;
 }
 
-collective_channel_map Trace::get_collective_channel_to_root_seq() const{
+collective_channel_map& Trace::get_collective_channel_to_root_seq(){
   return this->collective_channel_to_root_seq;
 }
 
-collective_channel_map Trace::get_collective_channel_to_sender_seq() const{
+collective_channel_map& Trace::get_collective_channel_to_sender_seq(){
   return this->collective_channel_to_sender_seq;
 }
 
@@ -772,6 +774,19 @@ std::unordered_map<long,Request> Trace::get_id_to_request() const
 {
   return this->id_to_request;
 }
+
+void Trace::set_collective_channel_to_root_seq(collective_channel_map new_map){
+  this->collective_channel_to_root_seq = new_map;
+}
+
+void Trace::set_collective_channel_to_sender_seq(collective_channel_map new_map){
+  this->collective_channel_to_sender_seq = new_map;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/////////// Collective Channel Setters /////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -854,3 +869,43 @@ void Trace::get_pluto_entry(int& msg_type, long& req_addr, int& source_type, lon
   this->pluto_trace >> msg_type >> req_addr >> source_type >> entrynum;
 }
 
+void Trace::disambiguate_trace_collective_maps(){
+  collective_channel_map updated_root_map;
+  collective_channel_map updated_sender_map;
+  for(auto& kvp : this->collective_channel_to_root_seq){
+    const CollectiveChannel& old_channel = kvp.first;
+    CollectiveChannel channel(old_channel.get_root(), 0, old_channel.get_type());
+    channel.set_global_ranks(old_channel.get_global_ranks());
+    std::vector<size_t> root_seq = kvp.second;
+    auto it = updated_root_map.find(channel);
+    if(it == updated_root_map.end()){
+      updated_root_map.insert({channel, root_seq});
+    }
+    else{
+      // Merge the root seq and sort. Can sort because these collectives are blocking and therefore, vertex IDs are ordered in order of completion. Need different solution for non-blocking collectives
+      for(size_t v: root_seq){
+        it->second.push_back(v);
+      }
+      std::sort(it->second.begin(), it->second.end());
+    }
+  }
+  for(auto& kvp : this->collective_channel_to_sender_seq){
+    const CollectiveChannel& old_channel = kvp.first;
+    CollectiveChannel channel(old_channel.get_root(), 0, old_channel.get_type()); // For new collective channels, set comm id to 0 for uniform access based solely on root, type and global ranks for consistent hashing
+    channel.set_global_ranks(old_channel.get_global_ranks());
+    std::vector<size_t> root_seq = kvp.second;
+    auto it = updated_sender_map.find(channel);
+    if(it == updated_sender_map.end()){
+      updated_sender_map.insert({channel, root_seq});
+    }
+    else{
+      // Merge the root seq and sort. Can sort because these collectives are blocking and therefore, vertex IDs are ordered in order of completion. Need different solution for non-blocking collectives
+      for(size_t v: root_seq){
+        it->second.push_back(v);
+      }
+      std::sort(it->second.begin(), it->second.end());
+    }
+  }
+  this->collective_channel_to_root_seq = updated_root_map;
+  this->collective_channel_to_sender_seq = updated_sender_map;
+}

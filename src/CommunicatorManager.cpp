@@ -434,6 +434,23 @@ std::unordered_map<int,std::unordered_map<int,int>> CommunicatorManager::get_com
   return this->comm_to_global_rank_to_comm_rank;
 }
 
+// Convert comm_to_global_rank_to_comm_rank to return comm->[global ranks participating] to generate unique collective channel
+// Even if communicator handles are distinct, the channel can be same if root and participating processes are the same
+std::unordered_map<dumpi_comm, std::vector<int>> CommunicatorManager::get_comm_to_global_ranks()
+{
+  for(auto& kvp: this->comm_to_global_rank_to_comm_rank){
+    std::vector<int> global_ranks;
+    for(auto& kvp2: kvp.second){
+      global_ranks.push_back(kvp2.first);   // Adding the participating global ranks
+    }
+    std::sort(global_ranks.begin(), global_ranks.end());
+    this->comm_to_global.insert({kvp.first, global_ranks});
+  }
+  this->comm_to_global.insert({DUMPI_COMM_WORLD, std::vector<int>{-1, -1, -1}}); // Default case entry for MPI_COMM_WORLD not included in comm_to_global_rank_to_comm_rank as it is not user defined
+
+  return this->comm_to_global;
+}
+
 // Convenience printing function
 void CommunicatorManager::print() const
 {
