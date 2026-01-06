@@ -102,10 +102,12 @@ public:
 
   channel_map get_channel_to_recv_seq() const;
   channel_map get_channel_to_send_seq() const;
-  collective_channel_map get_collective_channel_to_root_seq() const;
-  collective_channel_map get_collective_channel_to_sender_seq() const;
+  collective_channel_map& get_collective_channel_to_root_seq();
+  collective_channel_map& get_collective_channel_to_sender_seq();
   std::unordered_map<size_t, CollectiveChannel> get_vid_to_collective_channel() const;
   std::unordered_map<long,Request> get_id_to_request() const;
+
+  void disambiguate_trace_collective_maps();
 
   // Convenience functions for printing representations of the trace
   void report_event_seq();
@@ -116,6 +118,10 @@ public:
   bool get_papi_flag() const {return config.get_papi_flag();};
   
   void get_pluto_entry(int&, long&, int&, long&);
+
+  void set_collective_channel_to_root_seq(collective_channel_map);
+
+  void set_collective_channel_to_sender_seq(collective_channel_map);
   
 private:
 

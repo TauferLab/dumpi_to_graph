@@ -64,6 +64,8 @@ private:
   // Makes sure all channels are specified in terms of global ranks
   void disambiguate_channel_maps();
 
+  void disambiguate_collective_channel_maps();
+
   // Merges trace data from all trace ranks that this dumpi_to_graph process
   // is handling
   void merge_trace_data(); 
