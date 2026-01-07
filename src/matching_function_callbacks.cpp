@@ -166,8 +166,8 @@ int cb_MPI_Waitsome(const dumpi_waitsome *prm,
     if (search != request_indices.end()) {
 
       trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
-      if(call_type != 2){
-        std::cerr << "Misaligned Pluto Output in Waitsome " << call_type << " " << event_num << std::endl;
+      if(call_type != 2 && call_type != 6 && call_type != 0){    // Request types -> 2: recv, 0: send, 6: null
+        std::cerr << "Misaligned Pluto Output in Waitsome " << req_addr<<' '<< call_type << " " << event_num <<" Rank: "<<trace->get_trace_rank()<< std::endl;
       } 
   else{
     std::cout << "JACK_ it is aligned for waitsome" << std::endl;

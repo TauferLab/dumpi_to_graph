@@ -124,7 +124,8 @@ int cb_MPI_Isend(const dumpi_isend *prm,
   long request_id = event.request;
 
   trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
-  if(msg_type != 0 || call_type != 0){
+
+  if(msg_type != 0 && call_type != 0 && call_type != 3){  // Call type: 0-> send, 3-> non-flag
       std::cerr << "Misaligned Pluto output in isend found " << call_type << " " << event_num << " ID: " << req_addr << " rank: " <<trace->get_trace_rank() << std::endl;
   }
 
