@@ -95,7 +95,7 @@ int cb_MPI_Waitany(const dumpi_waitany *prm,
   int request_idx = event.index;
 
   trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
-  if(call_type != 2){
+  if(call_type != 2 && call_type != 6){
     // JACK_ FIXME: Dumpi says this is a waitany event but pluto says it is send event
      std::cerr << "Misaligned Pluto Output in Waitany " << call_type << " " << event_num << " ID: " << req_addr << " rank: " << trace->get_trace_rank() << std::endl;
   }
@@ -108,6 +108,9 @@ int cb_MPI_Waitany(const dumpi_waitany *prm,
 
   // Update the call index for MPI_Waitany
   trace->update_call_idx( "MPI_Waitany" );
+
+  if(call_type == 6)    // Null Request
+    return 0;
 
   // Complete the request
   trace->complete_request( req_addr, 
@@ -269,24 +272,28 @@ int cb_MPI_Test(const dumpi_test *prm,
   // Check whether a request was actually completed. If not, we can exit early.
   // FIXME: We want to allow user's the option of explicitly representing 
   // unmatched tests in the event graph, but it's not a high priority for now
+  
   if ( event.flag == 0) {
     return 0;
   }
-  
   // Update the call index for MPI_Test
   trace->update_call_idx( "MPI_Test" );
+
+  
   
   // Otherwise, complete the request
   long request_id = event.request;
   trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
-  if(call_type != 2){
+  if(call_type != 2 && call_type != 6){
       std::cerr << "Misaligned Pluto Output in Test " << call_type << " " << event_num << std::endl;
   } 
   else{
     std::cout << "JACK_ it is aligned for test" << std::endl;
   } 
 
- 
+  if(call_type == 6){   // Null Request type
+    return 0;
+  }
   dumpi_status* status_ptr = event.status;
   trace->complete_request( req_addr, 
                            status_ptr, 
