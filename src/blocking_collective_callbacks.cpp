@@ -90,8 +90,8 @@ int cb_MPI_BCast(const dumpi_bcast *prm,
   }
   
   // Associate this barrier event with the MPI function call that generated it
-  trace->update_call_idx( "MPI_BCast" );
-  trace->associate_event_with_call( "MPI_BCast", event_vertex_id );
+  trace->update_call_idx( "MPI_Bcast" );
+  trace->associate_event_with_call( "MPI_Bcast", event_vertex_id );
   //std::cout<<"Reduce called++++++++++++++++"<<std::endl;
   // Return OK
   return 0;
