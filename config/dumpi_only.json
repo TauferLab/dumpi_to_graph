@@ -14,6 +14,7 @@
         "MPI_Testsome",
         "MPI_Testall",
         "MPI_Barrier",
+        "MPI_Bcast",
         "MPI_Reduce",
         "MPI_Allreduce",
         "MPI_Alltoall",
@@ -30,7 +31,9 @@
         "MPI_Barrier",
         "MPI_Allreduce",
         "MPI_Reduce",
-        "MPI_BCast"
+        "MPI_Bcast",
+        "MPI_Alltoall",
+        "MPI_Alltoallv"
     ],
 
     "happens_before_orders":

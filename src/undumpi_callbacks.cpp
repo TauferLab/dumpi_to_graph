@@ -67,7 +67,7 @@ void set_callbacks(libundumpi_callbacks* callbacks,
     else if (fn == "MPI_Allreduce")    { callbacks->on_allreduce    = cb_MPI_Allreduce;    }
     else if (fn == "MPI_Alltoall")     { callbacks->on_alltoall     = cb_MPI_Alltoall;     }
     else if (fn == "MPI_Alltoallv")    { callbacks->on_alltoallv    = cb_MPI_Alltoallv;    }
-    else if (fn == "MPI_BCast")    { callbacks->on_bcast    = cb_MPI_BCast;    }
+    else if (fn == "MPI_Bcast")    { callbacks->on_bcast    = cb_MPI_Bcast;    }
   }
 }
 
