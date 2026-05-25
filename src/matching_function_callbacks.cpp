@@ -47,13 +47,15 @@ int cb_MPI_Wait(const dumpi_wait *prm,
   long request_id = event.request;
   
   trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
-  if(call_type != 2){
+  if(call_type != 2 && call_type != 6){
      std::cerr << "Misaligned Pluto Output in Wait " << call_type << " " << event_num << std::endl;
   } 
-  else{
-    std::cout << "JACK_ it is aligned for wait - " << req_addr << " - " << call_type << " - " << event_num << " - rank: " << trace->get_trace_rank()  << std::endl;
-  } 
-  
+  //else{
+    //std::cout << "JACK_ it is aligned for wait - " << req_addr << " - " << call_type << " - " << event_num << " - rank: " << trace->get_trace_rank()  << std::endl;
+  //} 
+  if (call_type == 6){
+    return 0;
+  }
   // if(event_num!=5){
     dumpi_status* status_ptr = event.status;
     trace->complete_request( req_addr, 
