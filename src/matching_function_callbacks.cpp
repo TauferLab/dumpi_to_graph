@@ -174,9 +174,8 @@ int cb_MPI_Waitsome(const dumpi_waitsome *prm,
       if(call_type != 2 && call_type != 6 && call_type != 0){    // Request types -> 2: recv, 0: send, 6: null
         std::cerr << "Misaligned Pluto Output in Waitsome " << req_addr<<' '<< call_type << " " << event_num <<" Rank: "<<trace->get_trace_rank()<< std::endl;
       } 
-  else{
-    std::cout << "JACK_ it is aligned for waitsome" << std::endl;
-  } 
+    if (call_type == 2){
+      
  
       trace->complete_request( req_addr, 
                                statuses_ptr, 
@@ -184,6 +183,7 @@ int cb_MPI_Waitsome(const dumpi_waitsome *prm,
                                wall_time,
                                perf,
                                "MPI_Waitsome" ); 
+      }
       statuses_ptr++;
     }
     requests_ptr++;
@@ -288,9 +288,6 @@ int cb_MPI_Test(const dumpi_test *prm,
   trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
   if(call_type != 2 && call_type != 6){
       std::cerr << "Misaligned Pluto Output in Test " << call_type << " " << event_num << std::endl;
-  } 
-  else{
-    std::cout << "JACK_ it is aligned for test" << std::endl;
   } 
 
   if(call_type == 6){   // Null Request type
@@ -417,13 +414,10 @@ int cb_MPI_Testsome(const dumpi_testsome *prm,
     if (search != request_indices.end()) {
 
       trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
-      if(call_type != 2){
+      if(call_type != 2 && call_type != 6 && call_type != 0){
         std::cerr << "Misaligned Pluto Output in Testsome " << call_type << " " << event_num << std::endl;
       } 
-  else{
-    std::cout << "JACK_ it is aligned for testsome" << std::endl;
-  } 
-
+      if (call_type==2)
       trace->complete_request( req_addr, 
                                statuses_ptr, 
                                cpu_time, 
