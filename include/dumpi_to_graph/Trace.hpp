@@ -63,9 +63,12 @@ public:
   void register_alltoall( CollectiveChannel channel, size_t event_vertex_id );
   
   void register_comm_split( int parent_comm_id,
-                            int new_comm_id, 
-                            int color, 
+                            int new_comm_id,
+                            int color,
                             int key );
+
+  void register_comm_create( int parent_comm_id,
+                             int new_comm_id );
 
   void register_initial_dumpi_timestamp( const dumpi_time& wall_time ); 
   void register_dumpi_timestamp( const dumpi_time& wall_time );

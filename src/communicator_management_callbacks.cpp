@@ -6,6 +6,7 @@
 
 // DUMPI
 #include "dumpi/common/argtypes.h"
+#include "dumpi/common/constants.h"
 
 // Internal
 #include "Trace.hpp"
@@ -46,7 +47,32 @@ int cb_MPI_Comm_split(const dumpi_comm_split *prm,
   return 0;
 }
 
-int cb_MPI_Comm_rank(const dumpi_comm_rank *prm, 
+int cb_MPI_Comm_create(const dumpi_comm_create *prm,
+                       uint16_t thread,
+                       const dumpi_time *cpu,
+                       const dumpi_time *wall,
+                       const dumpi_perfinfo *perf,
+                       void *uarg)
+{
+  Trace* trace = (Trace*) uarg;
+  bool papi = trace->get_papi_flag();
+  if (papi) {
+    validate_dumpi_event(prm, cpu, wall, perf);
+  } else {
+    validate_dumpi_event(prm, cpu, wall);
+  }
+  dumpi_comm_create event = *prm;
+  // Ranks not in the group get MPI_COMM_NULL back. MPI_Comm_create is
+  // collective on oldcomm so non-members still hit this callback, but they
+  // should not register as participants of newcomm.
+  if (event.newcomm == DUMPI_COMM_NULL) {
+    return 0;
+  }
+  trace->register_comm_create(event.oldcomm, event.newcomm);
+  return 0;
+}
+
+int cb_MPI_Comm_rank(const dumpi_comm_rank *prm,
                      uint16_t thread, 
                      const dumpi_time *cpu, 
                      const dumpi_time *wall, 

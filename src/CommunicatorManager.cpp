@@ -405,6 +405,20 @@ void CommunicatorManager::associate_rank_with_key( int comm_id,
   }
 }
 
+// MPI_Comm_create: install the calling rank directly into the final
+// global_rank -> comm_rank map for the new comm. comm_rank=0 is a placeholder
+// (no group tracking, so we cannot recover true within-comm ordering).
+// disambiguate_collective_channel_maps only reads the participating global
+// ranks (the keys), so the placeholder is fine for collective channels.
+// TODO: for multi-rank MPI_Comm_create with p2p messaging, also wire
+// MPI_Comm_group / MPI_Group_incl / MPI_Group_excl to recover ordering.
+void CommunicatorManager::register_comm_create_participant( int comm_id,
+                                                            int global_rank )
+{
+  auto& g2c = this->comm_to_global_rank_to_comm_rank[ comm_id ];
+  g2c.insert( { global_rank, 0 } );
+}
+
 // Accessors needed for aggregation
 std::unordered_map<int,size_t> CommunicatorManager::get_comm_to_size() const
 {

@@ -53,6 +53,12 @@ public:
   void update_comm_to_parent( int new_comm_id, int parent_comm_id );
   void associate_rank_with_color( int comm_id, int global_rank, int color );
   void associate_rank_with_key( int comm_id, int global_rank, int key );
+  // For MPI_Comm_create: each participating rank inserts itself directly into
+  // comm_to_global_rank_to_comm_rank, bypassing the color/key path used by
+  // MPI_Comm_split. comm_rank is a placeholder (0) — get_comm_to_global_ranks
+  // only reads the global-rank keys, which is what collective-channel
+  // disambiguation needs. See plan note on multi-rank Comm_create.
+  void register_comm_create_participant( int comm_id, int global_rank );
   // Accessors for aggregation
   std::unordered_map<int,size_t> get_comm_to_size() const;
   std::unordered_map<int,int> get_comm_to_parent() const;

@@ -89,8 +89,8 @@ CommunicatorManager& Trace::get_comm_manager()
 } 
 
 void Trace::register_comm_split( int parent_comm_id,
-                                 int new_comm_id, 
-                                 int color, 
+                                 int new_comm_id,
+                                 int color,
                                  int key )
 {
   auto global_rank = this->get_trace_rank();
@@ -100,6 +100,14 @@ void Trace::register_comm_split( int parent_comm_id,
   // the new communicator
   this->comm_manager.associate_rank_with_color( new_comm_id, global_rank, color );
   this->comm_manager.associate_rank_with_key( new_comm_id, global_rank, key );
+}
+
+void Trace::register_comm_create( int parent_comm_id,
+                                  int new_comm_id )
+{
+  auto global_rank = this->get_trace_rank();
+  this->comm_manager.update_comm_to_parent( new_comm_id, parent_comm_id );
+  this->comm_manager.register_comm_create_participant( new_comm_id, global_rank );
 }
 
 void Trace::register_barrier( size_t event_vertex_id ) 
@@ -344,14 +352,32 @@ void Trace::register_request( long request_id, Request& request )
     auto prev_request = search->second; 
     
     if(prev_request.get_type() == request.get_type()){ // request is the same
-      // std::cout << "type of request: " << prev_request.get_type() << std::endl; // JACK_
-      std::stringstream ss;
-      ss << "dumpi_to_graph rank: " << this->get_dumpi_to_graph_rank()
-        << " trying to map request ID: " << request_id 
-        << " to request: " << request
-        << " but request ID is already mapped to request: " << prev_request 
-        << std::endl;
-      throw std::runtime_error( ss.str() );
+      if (prev_request.is_cancelled()) {
+        if (prev_request.get_type() == 0) {
+          // Cancelled isend reused without a completing MPI_Wait. Preserve the
+          // existing abort-on-cancelled-isend contract from
+          // complete_isend_request (Trace.cpp:567-571).
+          std::stringstream ss;
+          ss << "Cancelled isend request ID " << request_id
+             << " reused on rank " << this->get_dumpi_to_graph_rank()
+             << " without a completing MPI_Wait. Aborting." << std::endl;
+          throw std::runtime_error( ss.str() );
+        }
+        // Cancelled irecv whose MPI_Request storage has been recycled by a
+        // fresh MPI_Irecv (e.g. MCB's Nonblocking_Sync destructor cancels and
+        // the next Nonblocking_Sync reuses the same handle). Drop the stale
+        // cancelled entry and install the fresh request in its place.
+        this->id_to_request.erase( search );
+        this->id_to_request.insert( { request_id, request } );
+      } else {
+        std::stringstream ss;
+        ss << "dumpi_to_graph rank: " << this->get_dumpi_to_graph_rank()
+          << " trying to map request ID: " << request_id
+          << " to request: " << request
+          << " but request ID is already mapped to request: " << prev_request
+          << std::endl;
+        throw std::runtime_error( ss.str() );
+      }
     }
     else{
       // this->id_to_request.insert( { request_id, request } );
