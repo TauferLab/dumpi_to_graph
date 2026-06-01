@@ -19,6 +19,10 @@
         "MPI_Allreduce",
         "MPI_Alltoall",
         "MPI_Alltoallv",
+        "MPI_Gather",
+        "MPI_Gatherv",
+        "MPI_Scatter",
+        "MPI_Scatterv",
         "MPI_Cancel",
         "MPI_Request_free",
         "MPI_Comm_rank",
@@ -34,7 +38,11 @@
         "MPI_Reduce",
         "MPI_Bcast",
         "MPI_Alltoall",
-        "MPI_Alltoallv"
+        "MPI_Alltoallv",
+        "MPI_Gather",
+        "MPI_Gatherv",
+        "MPI_Scatter",
+        "MPI_Scatterv"
     ],
 
     "happens_before_orders":

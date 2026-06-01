@@ -61,7 +61,9 @@ public:
   void register_allreduce( CollectiveChannel channel, size_t event_vertex_id );
   void register_bcast( CollectiveChannel channel, size_t event_vertex_id );
   void register_alltoall( CollectiveChannel channel, size_t event_vertex_id );
-  
+  void register_gather( CollectiveChannel channel, size_t event_vertex_id );
+  void register_scatter( CollectiveChannel channel, size_t event_vertex_id );
+
   void register_comm_split( int parent_comm_id,
                             int new_comm_id,
                             int color,

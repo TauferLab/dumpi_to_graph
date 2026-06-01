@@ -630,11 +630,13 @@ void EventGraph::make_collective_edges()
           continue;
         }
         for(int i = 0; i<kvp.second.size();i++){
-          if(kvp.first.get_type()==1 || kvp.first.get_type()==3){ // Reduce and AllReduce
+          if(kvp.first.get_type()==1 || kvp.first.get_type()==3 ||
+             kvp.first.get_type()==5 || kvp.first.get_type()==6){ // Reduce, AllReduce, Gather, Gatherv
             auto edge = std::make_pair( seq.at(i), kvp.second.at(i) );
             this->message_order_edges.push_back(edge);
           }
-          else if(kvp.first.get_type()==2 || kvp.first.get_type()==4){  // BCast and Alltoall
+          else if(kvp.first.get_type()==2 || kvp.first.get_type()==4 ||
+                  kvp.first.get_type()==7 || kvp.first.get_type()==8){  // BCast, Alltoall, Scatter, Scatterv
             auto edge = std::make_pair(  kvp.second.at(i), seq.at(i) );
             this->message_order_edges.push_back(edge);
           }
@@ -851,7 +853,7 @@ void EventGraph::apply_scalar_logical_clock()
 {
   std::unordered_map<uint8_t, std::string> type_to_name =
   {
-    {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}, {5, "reduce"}
+    {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}, {5, "reduce"}, {6, "allreduce"}, {7, "bcast"}, {8, "alltoall"}, {9, "gather"}, {10, "scatter"}
   };
 
   int mpi_rc, rank;
@@ -1120,7 +1122,7 @@ void EventGraph::merge()
   if ( rank == 0 ) {
     std::unordered_map<uint8_t, std::string> type_to_name =
     {
-      {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}, {5, "reduce"}
+      {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}, {5, "reduce"}, {6, "allreduce"}, {7, "bcast"}, {8, "alltoall"}, {9, "gather"}, {10, "scatter"}
     };
     int igraph_rc;
     // Turn on the igraph attribute handler 
@@ -1246,7 +1248,7 @@ void EventGraph::report_program_order_edges() const
 { 
   std::unordered_map<uint8_t, std::string> type_to_name =
   {
-    {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}
+    {0, "send"}, {1, "recv"}, {2, "init"}, {3, "finalize"}, {4, "barrier"}, {5, "reduce"}, {6, "allreduce"}, {7, "bcast"}, {8, "alltoall"}, {9, "gather"}, {10, "scatter"}
   };
   for ( auto edge : this->program_order_edges ) {
     auto src_vertex_id = edge.first;

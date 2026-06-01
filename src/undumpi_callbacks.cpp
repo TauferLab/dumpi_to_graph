@@ -69,6 +69,10 @@ void set_callbacks(libundumpi_callbacks* callbacks,
     else if (fn == "MPI_Alltoall")     { callbacks->on_alltoall     = cb_MPI_Alltoall;     }
     else if (fn == "MPI_Alltoallv")    { callbacks->on_alltoallv    = cb_MPI_Alltoallv;    }
     else if (fn == "MPI_Bcast")    { callbacks->on_bcast    = cb_MPI_Bcast;    }
+    else if (fn == "MPI_Gather")   { callbacks->on_gather   = cb_MPI_Gather;   }
+    else if (fn == "MPI_Gatherv")  { callbacks->on_gatherv  = cb_MPI_Gatherv;  }
+    else if (fn == "MPI_Scatter")  { callbacks->on_scatter  = cb_MPI_Scatter;  }
+    else if (fn == "MPI_Scatterv") { callbacks->on_scatterv = cb_MPI_Scatterv; }
   }
 }
 

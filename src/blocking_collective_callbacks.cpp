@@ -271,3 +271,167 @@ int cb_MPI_Alltoallv(const dumpi_alltoallv *prm,
   // Return OK
   return 0;
 }
+
+int cb_MPI_Gather(const dumpi_gather *prm,
+                  uint16_t thread,
+                  const dumpi_time *cpu,
+                  const dumpi_time *wall,
+                  const dumpi_perfinfo *perf,
+                  void *uarg)
+{
+  Trace* trace = (Trace*) uarg;
+  // Check that event data is OK
+  bool papi = trace->get_papi_flag();
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall);
+  }
+  dumpi_perfinfo counters;
+  dumpi_gather event = *prm;
+  dumpi_time cpu_time = *cpu;
+  dumpi_time wall_time = *wall;
+
+  // Get the vertex ID for the vertex that will represent this event
+  size_t event_vertex_id = trace->get_next_vertex_id();
+
+  CollectiveChannel channel(event.root, event.comm, 5);
+
+  // Add the vertex to the event sequence
+  trace->register_gather( channel, event_vertex_id );
+  trace->register_dumpi_timestamp( wall_time );
+  if(papi){
+    counters = *perf;
+    trace->register_papi_struct(counters);
+  }
+
+  // Associate this gather event with the MPI function call that generated it
+  trace->update_call_idx( "MPI_Gather" );
+  trace->associate_event_with_call( "MPI_Gather", event_vertex_id );
+  // Return OK
+  return 0;
+}
+
+int cb_MPI_Gatherv(const dumpi_gatherv *prm,
+                   uint16_t thread,
+                   const dumpi_time *cpu,
+                   const dumpi_time *wall,
+                   const dumpi_perfinfo *perf,
+                   void *uarg)
+{
+  Trace* trace = (Trace*) uarg;
+  // Check that event data is OK
+  bool papi = trace->get_papi_flag();
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall);
+  }
+  dumpi_perfinfo counters;
+  dumpi_gatherv event = *prm;
+  dumpi_time cpu_time = *cpu;
+  dumpi_time wall_time = *wall;
+
+  // Get the vertex ID for the vertex that will represent this event
+  size_t event_vertex_id = trace->get_next_vertex_id();
+
+  CollectiveChannel channel(event.root, event.comm, 6);
+
+  // Add the vertex to the event sequence
+  trace->register_gather( channel, event_vertex_id );
+  trace->register_dumpi_timestamp( wall_time );
+  if(papi){
+    counters = *perf;
+    trace->register_papi_struct(counters);
+  }
+
+  // Associate this gather event with the MPI function call that generated it
+  trace->update_call_idx( "MPI_Gatherv" );
+  trace->associate_event_with_call( "MPI_Gatherv", event_vertex_id );
+  // Return OK
+  return 0;
+}
+
+int cb_MPI_Scatter(const dumpi_scatter *prm,
+                   uint16_t thread,
+                   const dumpi_time *cpu,
+                   const dumpi_time *wall,
+                   const dumpi_perfinfo *perf,
+                   void *uarg)
+{
+  Trace* trace = (Trace*) uarg;
+  // Check that event data is OK
+  bool papi = trace->get_papi_flag();
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall);
+  }
+  dumpi_perfinfo counters;
+  dumpi_scatter event = *prm;
+  dumpi_time cpu_time = *cpu;
+  dumpi_time wall_time = *wall;
+
+  // Get the vertex ID for the vertex that will represent this event
+  size_t event_vertex_id = trace->get_next_vertex_id();
+
+  CollectiveChannel channel(event.root, event.comm, 7);
+
+  // Add the vertex to the event sequence
+  trace->register_scatter( channel, event_vertex_id );
+  trace->register_dumpi_timestamp( wall_time );
+  if(papi){
+    counters = *perf;
+    trace->register_papi_struct(counters);
+  }
+
+  // Associate this scatter event with the MPI function call that generated it
+  trace->update_call_idx( "MPI_Scatter" );
+  trace->associate_event_with_call( "MPI_Scatter", event_vertex_id );
+  // Return OK
+  return 0;
+}
+
+int cb_MPI_Scatterv(const dumpi_scatterv *prm,
+                    uint16_t thread,
+                    const dumpi_time *cpu,
+                    const dumpi_time *wall,
+                    const dumpi_perfinfo *perf,
+                    void *uarg)
+{
+  Trace* trace = (Trace*) uarg;
+  // Check that event data is OK
+  bool papi = trace->get_papi_flag();
+  if(papi){
+    validate_dumpi_event(prm, cpu, wall, perf);
+  }
+  else{
+    validate_dumpi_event(prm, cpu, wall);
+  }
+  dumpi_perfinfo counters;
+  dumpi_scatterv event = *prm;
+  dumpi_time cpu_time = *cpu;
+  dumpi_time wall_time = *wall;
+
+  // Get the vertex ID for the vertex that will represent this event
+  size_t event_vertex_id = trace->get_next_vertex_id();
+
+  CollectiveChannel channel(event.root, event.comm, 8);
+
+  // Add the vertex to the event sequence
+  trace->register_scatter( channel, event_vertex_id );
+  trace->register_dumpi_timestamp( wall_time );
+  if(papi){
+    counters = *perf;
+    trace->register_papi_struct(counters);
+  }
+
+  // Associate this scatter event with the MPI function call that generated it
+  trace->update_call_idx( "MPI_Scatterv" );
+  trace->associate_event_with_call( "MPI_Scatterv", event_vertex_id );
+  // Return OK
+  return 0;
+}

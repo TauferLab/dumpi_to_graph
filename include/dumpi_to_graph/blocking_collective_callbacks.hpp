@@ -40,10 +40,38 @@ int cb_MPI_Alltoall(const dumpi_alltoall *prm,
                     const dumpi_perfinfo *perf, 
                     void *uarg);
 
-int cb_MPI_Alltoallv(const dumpi_alltoallv *prm, 
-                     uint16_t thread, 
-                     const dumpi_time *cpu, 
-                     const dumpi_time *wall, 
-                     const dumpi_perfinfo *perf, 
-                     void *uarg); 
+int cb_MPI_Alltoallv(const dumpi_alltoallv *prm,
+                     uint16_t thread,
+                     const dumpi_time *cpu,
+                     const dumpi_time *wall,
+                     const dumpi_perfinfo *perf,
+                     void *uarg);
+
+int cb_MPI_Gather(const dumpi_gather *prm,
+                  uint16_t thread,
+                  const dumpi_time *cpu,
+                  const dumpi_time *wall,
+                  const dumpi_perfinfo *perf,
+                  void *uarg);
+
+int cb_MPI_Gatherv(const dumpi_gatherv *prm,
+                   uint16_t thread,
+                   const dumpi_time *cpu,
+                   const dumpi_time *wall,
+                   const dumpi_perfinfo *perf,
+                   void *uarg);
+
+int cb_MPI_Scatter(const dumpi_scatter *prm,
+                   uint16_t thread,
+                   const dumpi_time *cpu,
+                   const dumpi_time *wall,
+                   const dumpi_perfinfo *perf,
+                   void *uarg);
+
+int cb_MPI_Scatterv(const dumpi_scatterv *prm,
+                    uint16_t thread,
+                    const dumpi_time *cpu,
+                    const dumpi_time *wall,
+                    const dumpi_perfinfo *perf,
+                    void *uarg);
 #endif // D2G_BLOCKING_COLLECTIVE_CALLBACKS_H

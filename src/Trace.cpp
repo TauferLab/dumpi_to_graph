@@ -210,6 +210,58 @@ void Trace::register_reduce( CollectiveChannel channel, size_t event_vertex_id )
   this->vid_to_collective_channel.insert( { event_vertex_id, channel } );
 }
 
+void Trace::register_scatter( CollectiveChannel channel, size_t event_vertex_id ){
+  this->event_seq.push_back(10);
+  // If trace is root
+  if(this->get_trace_rank() == channel.get_root()){
+    auto chan_search = this->collective_channel_to_root_seq.find(channel);
+    if(chan_search != this->collective_channel_to_root_seq.end()){
+      chan_search->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_root_seq.insert( { channel, seq } );
+    }
+  }
+  else{
+    auto chan_search = this->collective_channel_to_sender_seq.find(channel);
+    if(chan_search != this->collective_channel_to_sender_seq.end()){
+      chan_search->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_sender_seq.insert({ channel, seq });
+    }
+  }
+  this->vid_to_collective_channel.insert( { event_vertex_id, channel } );
+}
+
+void Trace::register_gather( CollectiveChannel channel, size_t event_vertex_id ){
+  this->event_seq.push_back(9);
+  // If trace is root
+  if(this->get_trace_rank() == channel.get_root()){
+    auto chan_search = this->collective_channel_to_root_seq.find(channel);
+    if(chan_search != this->collective_channel_to_root_seq.end()){
+      chan_search->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_root_seq.insert( { channel, seq } );
+    }
+  }
+  else{
+    auto chan_search = this->collective_channel_to_sender_seq.find(channel);
+    if(chan_search != this->collective_channel_to_sender_seq.end()){
+      chan_search->second.push_back(event_vertex_id);
+    }
+    else{
+      std::vector<size_t> seq = { event_vertex_id };
+      this->collective_channel_to_sender_seq.insert({ channel, seq });
+    }
+  }
+  this->vid_to_collective_channel.insert( { event_vertex_id, channel } );
+}
+
 void Trace::register_initial_dumpi_timestamp( const dumpi_time& wall_time )
 {
   int32_t wall_time_start_sec = wall_time.start.sec;
