@@ -684,6 +684,77 @@ void Trace::complete_irecv_request( Request request,
   }
 }
 
+// Register an in-flight nonblocking collective at its call site, keyed by the
+// DUMPI request id. No vertex is created yet (mirrors MPI_Irecv); the issue
+// order is captured now so instances match across ranks regardless of the
+// order in which their MPI_Wait/Test completions appear.
+void Trace::register_collective_request( long request_id,
+                                         const CollectiveChannel& channel,
+                                         const std::string& fn_name )
+{
+  PendingCollective pc;
+  pc.channel = channel;
+  pc.issue_seq = this->collective_issue_seq++;
+  pc.fn_name = fn_name;
+  this->reqid_to_collective.insert( { request_id, pc } );
+}
+
+bool Trace::is_collective_request( long request_id ) const
+{
+  return this->reqid_to_collective.find( request_id ) != this->reqid_to_collective.end();
+}
+
+// Complete a nonblocking collective when its request is matched by an
+// MPI_Wait/Waitall/Test. The collective vertex is minted here (at completion)
+// and fed into the same collective-channel maps as a blocking collective, so
+// make_collective_edges draws identical inter-process edges. Pluto is NOT
+// consulted for these completions (the caller skips get_pluto_entry).
+void Trace::complete_collective_request( long request_id,
+                                         const dumpi_time wall_time,
+                                         const dumpi_perfinfo *ctrs )
+{
+  auto search = this->reqid_to_collective.find( request_id );
+  if ( search == this->reqid_to_collective.end() ) {
+    throw std::runtime_error( "Collective request not found in complete_collective_request" );
+  }
+  PendingCollective pc = search->second;
+  CollectiveChannel channel = pc.channel;
+
+  // Mint the collective vertex now (completion time), mirroring complete_irecv_request
+  size_t event_vertex_id = this->get_next_vertex_id();
+
+  // Route into the same root/sender collective maps used by blocking collectives.
+  // Type codes match CollectiveChannel: 1=Reduce 2=Bcast 3=Allreduce 4=Alltoall
+  // 5=Gather 6=Gatherv 7=Scatter 8=Scatterv
+  switch ( channel.get_type() ) {
+    case 1: this->register_reduce( channel, event_vertex_id ); break;
+    case 2: this->register_bcast( channel, event_vertex_id ); break;
+    case 3: this->register_allreduce( channel, event_vertex_id ); break;
+    case 4: this->register_alltoall( channel, event_vertex_id ); break;
+    case 5:
+    case 6: this->register_gather( channel, event_vertex_id ); break;
+    case 7:
+    case 8: this->register_scatter( channel, event_vertex_id ); break;
+    default:
+      throw std::runtime_error( "Unknown collective type in complete_collective_request" );
+  }
+
+  // Record issue (call) order so instances are matched by issue order across ranks
+  this->vid_to_issue_seq.insert( { event_vertex_id, pc.issue_seq } );
+
+  // Timestamp + perf, mirroring complete_irecv_request
+  this->register_dumpi_timestamp( wall_time );
+  if ( ctrs != nullptr ) {
+    this->register_papi_struct( *ctrs );
+  }
+
+  // Associate the vertex with the generating MPI collective call
+  this->update_call_idx( pc.fn_name );
+  this->associate_event_with_call( pc.fn_name, event_vertex_id );
+
+  this->reqid_to_collective.erase( request_id );
+}
+
 void Trace::apply_vertex_id_offset( size_t offset ) 
 {
   this->vertex_id_offset = offset;
@@ -948,6 +1019,19 @@ void Trace::get_pluto_entry(int& msg_type, long& req_addr, int& source_type, lon
 }
 
 void Trace::disambiguate_trace_collective_maps(){
+  // Order each channel's instances by issue (call) order. For blocking
+  // collectives the vertex is created at the call site so vertex-id order ==
+  // issue order, and the key falls back to the vertex id (preserving the prior
+  // behavior). For nonblocking collectives the vertex is created at completion,
+  // so we use the issue_seq captured at the call site (see vid_to_issue_seq).
+  auto issue_key = [this]( size_t v ) -> long {
+    auto it = this->vid_to_issue_seq.find( v );
+    return ( it != this->vid_to_issue_seq.end() ) ? it->second : (long)v;
+  };
+  auto sort_by_issue = [&]( std::vector<size_t>& seq ){
+    std::sort( seq.begin(), seq.end(),
+               [&]( size_t a, size_t b ){ return issue_key(a) < issue_key(b); } );
+  };
   collective_channel_map updated_root_map;
   collective_channel_map updated_sender_map;
   for(auto& kvp : this->collective_channel_to_root_seq){
@@ -957,14 +1041,14 @@ void Trace::disambiguate_trace_collective_maps(){
     std::vector<size_t> root_seq = kvp.second;
     auto it = updated_root_map.find(channel);
     if(it == updated_root_map.end()){
+      sort_by_issue(root_seq);
       updated_root_map.insert({channel, root_seq});
     }
     else{
-      // Merge the root seq and sort. Can sort because these collectives are blocking and therefore, vertex IDs are ordered in order of completion. Need different solution for non-blocking collectives
       for(size_t v: root_seq){
         it->second.push_back(v);
       }
-      std::sort(it->second.begin(), it->second.end());
+      sort_by_issue(it->second);
     }
   }
   for(auto& kvp : this->collective_channel_to_sender_seq){
@@ -974,14 +1058,14 @@ void Trace::disambiguate_trace_collective_maps(){
     std::vector<size_t> root_seq = kvp.second;
     auto it = updated_sender_map.find(channel);
     if(it == updated_sender_map.end()){
+      sort_by_issue(root_seq);
       updated_sender_map.insert({channel, root_seq});
     }
     else{
-      // Merge the root seq and sort. Can sort because these collectives are blocking and therefore, vertex IDs are ordered in order of completion. Need different solution for non-blocking collectives
       for(size_t v: root_seq){
         it->second.push_back(v);
       }
-      std::sort(it->second.begin(), it->second.end());
+      sort_by_issue(it->second);
     }
   }
   this->collective_channel_to_root_seq = updated_root_map;

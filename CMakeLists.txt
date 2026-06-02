@@ -15,7 +15,8 @@ src/Utilities.cpp src/blocking_p2p_callbacks.cpp
 src/communicator_management_callbacks.cpp src/Configuration.cpp
 src/CSMPI_Trace.cpp src/dumpi_to_graph.cpp src/finalize_callbacks.cpp
 src/init_callbacks.cpp src/nonblocking_p2p_callbacks.cpp
-src/request_mutating_callbacks.cpp src/undumpi_callbacks.cpp src/CollectiveChannel.cpp) 
+src/request_mutating_callbacks.cpp src/undumpi_callbacks.cpp src/CollectiveChannel.cpp
+src/nonblocking_collective_callbacks.cpp)
 
 target_include_directories(dumpi_to_graph PRIVATE include include/dumpi_to_graph include/external)
 

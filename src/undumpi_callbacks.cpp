@@ -8,6 +8,7 @@
 #include "matching_function_callbacks.hpp" 
 #include "request_mutating_callbacks.hpp"
 #include "blocking_collective_callbacks.hpp"
+#include "nonblocking_collective_callbacks.hpp"
 #include "communicator_management_callbacks.hpp"
 
 void set_callbacks(libundumpi_callbacks* callbacks, 
@@ -35,6 +36,16 @@ void set_callbacks(libundumpi_callbacks* callbacks,
     // Nonblocking point-to-point communication functions
     else if (fn == "MPI_Isend")        { callbacks->on_isend        = cb_MPI_Isend;        }
     else if (fn == "MPI_Irecv")        { callbacks->on_irecv        = cb_MPI_Irecv;        }
+    // Nonblocking collective communication functions (completed at MPI_Wait/Test)
+    else if (fn == "MPI_Ireduce")      { callbacks->on_ireduce      = cb_MPI_Ireduce;      }
+    else if (fn == "MPI_Iallreduce")   { callbacks->on_iallreduce   = cb_MPI_Iallreduce;   }
+    else if (fn == "MPI_Ibcast")       { callbacks->on_ibcast       = cb_MPI_Ibcast;       }
+    else if (fn == "MPI_Igather")      { callbacks->on_igather      = cb_MPI_Igather;      }
+    else if (fn == "MPI_Igatherv")     { callbacks->on_igatherv     = cb_MPI_Igatherv;     }
+    else if (fn == "MPI_Iscatter")     { callbacks->on_iscatter     = cb_MPI_Iscatter;     }
+    else if (fn == "MPI_Iscatterv")    { callbacks->on_iscatterv    = cb_MPI_Iscatterv;    }
+    else if (fn == "MPI_Ialltoall")    { callbacks->on_ialltoall    = cb_MPI_Ialltoall;    }
+    else if (fn == "MPI_Ialltoallv")   { callbacks->on_ialltoallv   = cb_MPI_Ialltoallv;   }
     //// Persistent point-to-point communication functions
     //else if (fn == "MPI_Recv_init")    { callbacks->on_recv_init    = cb_MPI_Recv_init;    }
     //else if (fn == "MPI_Send_init")    { callbacks->on_send_init    = cb_MPI_Send_init;    }

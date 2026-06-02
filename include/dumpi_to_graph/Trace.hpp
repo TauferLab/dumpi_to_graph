@@ -22,6 +22,17 @@
 #include "CommunicatorManager.hpp"
 #include "CollectiveChannel.hpp"
 
+// Bookkeeping for an in-flight nonblocking collective (e.g. MPI_Ireduce).
+// The collective call is recorded by DUMPI but produces no vertex; the vertex
+// is minted when the matching MPI_Wait/Test completes the request, mirroring
+// how MPI_Irecv is handled. issue_seq captures call (issue) order so that
+// instances match across ranks even if completion order differs.
+struct PendingCollective {
+  CollectiveChannel channel;
+  long issue_seq;
+  std::string fn_name;
+};
+
 class Trace
 {
 public:
@@ -78,6 +89,17 @@ public:
   void register_papi_struct(const dumpi_perfinfo& counters);
 
   void register_request( long request_id, Request& request );
+
+  // Nonblocking collective handling (see PendingCollective).
+  // Registered at the collective call site (by DUMPI request id), completed at
+  // the matching MPI_Wait/Test.
+  void register_collective_request( long request_id,
+                                    const CollectiveChannel& channel,
+                                    const std::string& fn_name );
+  bool is_collective_request( long request_id ) const;
+  void complete_collective_request( long request_id,
+                                    const dumpi_time wall_time,
+                                    const dumpi_perfinfo *ctrs );
 
   Channel determine_channel_of_irecv( const Request& request, 
                                       const dumpi_status* status );
@@ -194,6 +216,15 @@ private:
   std::unordered_map<size_t, CollectiveChannel> vid_to_collective_channel;
   collective_channel_map collective_channel_to_root_seq; // Only populate if recipient of a collective call
   collective_channel_map collective_channel_to_sender_seq;  // Sending info to a collective call
+
+  // Nonblocking collective bookkeeping. reqid_to_collective is keyed by the
+  // DUMPI request id (small integers, disjoint from the Pluto-address-keyed
+  // id_to_request). vid_to_issue_seq records each nonblocking collective
+  // vertex's issue (call) order so disambiguate_trace_collective_maps can sort
+  // by issue order rather than completion order.
+  std::unordered_map<long, PendingCollective> reqid_to_collective;
+  std::unordered_map<size_t, long> vid_to_issue_seq;
+  long collective_issue_seq = 0;
 
   CommunicatorManager comm_manager; 
 

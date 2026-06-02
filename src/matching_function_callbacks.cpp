@@ -45,7 +45,16 @@ int cb_MPI_Wait(const dumpi_wait *prm,
 
   // Complete the request
   long request_id = event.request;
-  
+
+  // Nonblocking collective completion (e.g. MPI_Ireduce): comm/root/type were
+  // captured from DUMPI at the call site, so this is handled without Pluto. Do
+  // NOT read a Pluto entry here -- Pluto emits nothing for collective requests,
+  // so reading one would consume an unrelated entry and desync the stream.
+  if ( trace->is_collective_request( request_id ) ) {
+    trace->complete_collective_request( request_id, wall_time, papi ? perf : nullptr );
+    return 0;
+  }
+
   trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
   if(call_type != 2 && call_type != 6){
      std::cerr << "Misaligned Pluto Output in Wait " << call_type << " " << event_num << std::endl;
@@ -225,6 +234,16 @@ int cb_MPI_Waitall(const dumpi_waitall *prm,
   dumpi_status* statuses_ptr = event.statuses;
   for ( int i=0; i<n_requests; ++i ) {
     long request_id = *requests_ptr;
+
+    // Nonblocking collective completion: handled from DUMPI, no Pluto entry.
+    // Pluto emits nothing for collective requests, so skipping the read keeps
+    // the per-request Pluto stream aligned with the p2p requests in this array.
+    if ( trace->is_collective_request( request_id ) ) {
+      trace->complete_collective_request( request_id, wall_time, papi ? perf : nullptr );
+      statuses_ptr++;
+      requests_ptr++;
+      continue;
+    }
 
     trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
     if(call_type != 2 && call_type != 6){
