@@ -34,7 +34,12 @@ class CollectiveChannel{
 
     bool operator==(const CollectiveChannel& c) const
     {
-    return root == c.get_root() && comm == c.get_comm() && type == c.get_type();
+    // global_ranks is part of the identity: two collectives that share the same
+    // (root, normalized comm, type) but run on different communicators (e.g. the
+    // two halves of a split COMM_WORLD, which share a DUMPI comm id) are distinct.
+    // Must stay consistent with CollectiveChannelHash, which already hashes it.
+    return root == c.get_root() && comm == c.get_comm() && type == c.get_type()
+        && global_ranks == c.get_global_ranks();
     }
 
     private:
@@ -45,6 +50,11 @@ class CollectiveChannel{
       ar & root;
       ar & comm;
       ar & type;
+      // Must serialize global_ranks so channel identity survives the boost::mpi
+      // broadcast in EventGraph::exchange_collective_sender_data; otherwise
+      // post-broadcast sender channels (empty global_ranks) would not match the
+      // local root channels and collective edges would break.
+      ar & global_ranks;
     }
     int root;
     dumpi_comm comm;

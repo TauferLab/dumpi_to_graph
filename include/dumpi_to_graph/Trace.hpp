@@ -31,6 +31,10 @@ struct PendingCollective {
   CollectiveChannel channel;
   long issue_seq;
   std::string fn_name;
+  // Per-function call index captured at the CALL site (issue order), so the
+  // CSMPI callstack lookup (keyed by (fn_name, call_idx) in call order) matches
+  // even when collectives complete out of issue order.
+  size_t call_idx = 0;
 };
 
 class Trace
@@ -43,6 +47,11 @@ public:
 
   void update_call_idx( std::string mpi_fn );
   void associate_event_with_call( std::string mpi_fn, size_t event_vertex_id );
+  // Like associate_event_with_call but uses an explicit (call-site) call index
+  // instead of the current per-function counter. Used for nonblocking
+  // collectives, whose vertex is minted at completion but whose call index must
+  // reflect call order (to match CSMPI).
+  void associate_event_with_call_idx( const std::string& mpi_fn, size_t call_idx );
   std::vector<std::pair<std::string,size_t>> get_mpi_fn_seq() const;
 
   std::string get_trace_dir() const;

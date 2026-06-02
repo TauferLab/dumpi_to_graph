@@ -83,6 +83,14 @@ void Trace::associate_event_with_call( std::string mpi_fn, size_t event_vertex_i
   mpi_fn_seq.push_back( pair );
 }
 
+void Trace::associate_event_with_call_idx( const std::string& mpi_fn, size_t call_idx )
+{
+  // Push the (fn, explicit call_idx) pair at the current vertex-creation
+  // position. Does NOT touch _mpi_fn_to_idx (the counter was already advanced
+  // at the call site). Used by nonblocking collectives.
+  mpi_fn_seq.push_back( std::make_pair( mpi_fn, call_idx ) );
+}
+
 CommunicatorManager& Trace::get_comm_manager()
 {
   return this->comm_manager;
@@ -696,6 +704,11 @@ void Trace::register_collective_request( long request_id,
   pc.channel = channel;
   pc.issue_seq = this->collective_issue_seq++;
   pc.fn_name = fn_name;
+  // Advance the per-function call counter at the CALL site and capture this
+  // call's index, so the CSMPI callstack (recorded in call order) lines up with
+  // the vertex even if completions are reordered.
+  this->update_call_idx( fn_name );
+  pc.call_idx = this->_mpi_fn_to_idx.at( fn_name );
   this->reqid_to_collective.insert( { request_id, pc } );
 }
 
@@ -748,9 +761,10 @@ void Trace::complete_collective_request( long request_id,
     this->register_papi_struct( *ctrs );
   }
 
-  // Associate the vertex with the generating MPI collective call
-  this->update_call_idx( pc.fn_name );
-  this->associate_event_with_call( pc.fn_name, event_vertex_id );
+  // Associate the vertex with the generating MPI collective call. Use the
+  // call-site call index captured at issue time (NOT a fresh completion-order
+  // index) so the CSMPI callstack lookup matches.
+  this->associate_event_with_call_idx( pc.fn_name, pc.call_idx );
 
   this->reqid_to_collective.erase( request_id );
 }

@@ -96,10 +96,18 @@ EventGraph::EventGraph( const Configuration& config,
             << " vertex IDs disambiguated" << std::endl;
 #endif
 
+  // Disambiguate collective channels (translate comm-local roots to global
+  // roots, attach per-color global_ranks, normalize comm, sort by issue order)
+  // BEFORE merging, so the merged EventGraph-level maps and the sender broadcast
+  // operate on disambiguated channels. Must run after disambiguate_vertex_ids
+  // (vertex ids are final) and before merge_trace_data.
+  this->disambiguate_collective_channel_maps();
+  comm_world.barrier();
+
   merge_trace_data();
   comm_world.barrier();
 #ifdef REPORT_PROGRESS
-  std::cout << "Rank: " << global_rank 
+  std::cout << "Rank: " << global_rank
             << " trace data merged" << std::endl;
 #endif
 
@@ -134,8 +142,7 @@ EventGraph::EventGraph( const Configuration& config,
   comm_world.barrier();
 #endif
 
-// Disambiguating collective channel maps
-this->disambiguate_collective_channel_maps();
+  // (collective channel maps were disambiguated above, before merge_trace_data)
 
   // Construct edges
   this->make_program_order_edges();
@@ -300,62 +307,99 @@ CommunicatorManager EventGraph::exchange_user_defined_comm_data()
 
 void EventGraph::disambiguate_collective_channel_maps()
 {
+  // comm-id -> participating global ranks (colors lumped; placeholder for COMM_WORLD)
   auto global_ranks_map = this->comm_manager.get_comm_to_global_ranks();
+  // comm-id -> { (comm_rank, color_subseq) -> global_rank }. This is the same
+  // translator the point-to-point path uses; it distinguishes sub-communicators
+  // that share a DUMPI comm id by color.
+  auto comm_to_translator = this->comm_manager.get_comm_to_translator();
+
   for(auto& kvp: this->rank_to_trace){
-    std::cout<<"Appending global ranks for rank: "<<kvp.first<<std::endl;
+    int R = kvp.first;                 // this trace's global rank
     auto trace_ptr = kvp.second;
     auto& channel_to_root_seq = trace_ptr->get_collective_channel_to_root_seq();
     auto& channel_to_sender_seq = trace_ptr->get_collective_channel_to_sender_seq();
     collective_channel_map updt_root_map;
     collective_channel_map updt_sender_map;
-    //auto& vid_to_channel = trace_ptr->get_vid_to_collective_channel();
-    // Adjusting collective channels for root sequences
-    //std::cout<<"Adjusting root sequence maps for rank: "<<kvp.first<<std::endl;
-    // Check if comm_to_global_ranks is populated
-    //std::cout<<"Number of elements in global rank map: "<<global_ranks_map.size()<<std::endl;
-    //std::cout<<"Channel to root seq size: "<<channel_to_root_seq.size()<<std::endl;
-    for(auto kvp1: channel_to_root_seq){
-      auto it = global_ranks_map.find(kvp1.first.get_comm());
-      if(it == global_ranks_map.end()){
-        std::cout<<"Not found comm: "<<kvp1.first.get_comm()<<std::endl;
-        std::cout<<"Available keys in this comm dict:"<<std::endl;
-        for(auto k: global_ranks_map){
-          std::cout<<"Comm Key "<<k.first<<std::endl;
+
+    // Resolve, from rank R's perspective, the GLOBAL root and the PER-COLOR
+    // member set of a collective on comm C with comm-local root lr. For comms
+    // without a translator entry (notably MPI_COMM_WORLD) fall back to identity
+    // root + the lumped members (all COMM_WORLD channels then share one members
+    // vector, so they remain mutually equal).
+    auto resolve = [&]( int C, int lr ) -> std::pair<int, std::vector<int>> {
+      auto tit = comm_to_translator.find( C );
+      if ( tit == comm_to_translator.end() ) {
+        std::vector<int> members;
+        auto git = global_ranks_map.find( C );
+        if ( git != global_ranks_map.end() ) members = git->second;
+        return { lr, members };
+      }
+      const auto& translator = tit->second;
+      // R's color subsequence = the key whose value is R.
+      std::vector<int> my_color;
+      bool found = false;
+      for ( const auto& e : translator ) {
+        if ( e.second == R ) { my_color = e.first.second; found = true; break; }
+      }
+      if ( !found ) {
+        std::vector<int> members;
+        auto git = global_ranks_map.find( C );
+        if ( git != global_ranks_map.end() ) members = git->second;
+        return { lr, members };
+      }
+      // global_root = value at (lr, my_color); members = values sharing my_color.
+      int global_root = lr;
+      std::vector<int> members;
+      for ( const auto& e : translator ) {
+        if ( e.first.second == my_color ) {
+          members.push_back( e.second );
+          if ( e.first.first == lr ) global_root = e.second;
         }
       }
-      else{
-        //std::cout<<"Comm Found: "<<kvp1.first.get_comm()<<std::endl;
+      std::sort( members.begin(), members.end() );
+      return { global_root, members };
+    };
+
+    // Reclassify one source map's channels into the updated root/sender maps.
+    auto process = [&]( const collective_channel_map& src, bool from_root_map ) {
+      for ( auto kvp1 : src ) {
+        int C    = kvp1.first.get_comm();
+        int type = kvp1.first.get_type();
+        int lr   = kvp1.first.get_root();
+        if ( type == 3 || type == 4 ) {
+          // All-to-all (Allreduce/Alltoall(v)): root stays -1, attach per-color
+          // members, and preserve the original both-map placement (these
+          // collectives register the same vertex into root_seq and sender_seq).
+          auto res = resolve( C, 0 );
+          CollectiveChannel new_chan( -1, C, type );
+          new_chan.set_global_ranks( res.second );
+          auto& dst = from_root_map ? updt_root_map : updt_sender_map;
+          auto e = dst.find( new_chan );
+          if ( e == dst.end() ) dst.insert( { new_chan, kvp1.second } );
+          else e->second.insert( e->second.end(), kvp1.second.begin(), kvp1.second.end() );
+        } else {
+          // Root-based (Reduce/Bcast/Gather(v)/Scatter(v)): translate the local
+          // root to its global rank, then place this trace's vertices in the
+          // root map iff this trace IS that global root, else the sender map.
+          auto res = resolve( C, lr );
+          int global_root = res.first;
+          CollectiveChannel new_chan( global_root, C, type );
+          new_chan.set_global_ranks( res.second );
+          auto& dst = ( R == global_root ) ? updt_root_map : updt_sender_map;
+          auto e = dst.find( new_chan );
+          if ( e == dst.end() ) dst.insert( { new_chan, kvp1.second } );
+          else e->second.insert( e->second.end(), kvp1.second.begin(), kvp1.second.end() );
+        }
       }
-      std::vector<int> global_ranks = global_ranks_map.at(kvp1.first.get_comm());
-      //std::cout<<"Global vec retrieved"<<std::endl;
-      CollectiveChannel new_chan(kvp1.first.get_root(), kvp1.first.get_comm(), kvp1.first.get_type());
-      new_chan.set_global_ranks(global_ranks);
-      CollectiveChannel del_chan(kvp1.first.get_root(), kvp1.first.get_comm(), kvp1.first.get_type());
-      //auto kvp_sec = kvp1.second;
-      
-      //size_t removed = channel_to_root_seq.erase(del_chan);
-      //std::cout<<"Erased elements "<<removed<<std::endl;
-      updt_root_map.insert({new_chan, kvp1.second});
-    }
-    //std::cout<<"Adjusting sender sequence maps for rank: "<<kvp.first<<std::endl;
-    for(auto kvp1: channel_to_sender_seq){
-      std::vector<int> global_ranks = global_ranks_map.at(kvp1.first.get_comm());
-      CollectiveChannel new_chan(kvp1.first.get_root(), kvp1.first.get_comm(), kvp1.first.get_type());
-      new_chan.set_global_ranks(global_ranks);
-      //CollectiveChannel del_chan(kvp1.first.get_root(), kvp1.first.get_comm(), kvp1.first.get_type());
-      //auto kvp_sec = kvp1.second;
-      //channel_to_sender_seq.erase(del_chan);
-      updt_sender_map.insert({new_chan, kvp1.second});
-    }
-    trace_ptr->set_collective_channel_to_root_seq(updt_root_map);
-    trace_ptr->set_collective_channel_to_sender_seq(updt_sender_map);
-    std::cout<<"Starting trace collective disambiguation for rank: "<<kvp.first<<std::endl;
+    };
+
+    process( channel_to_root_seq,   /*from_root_map=*/true  );
+    process( channel_to_sender_seq, /*from_root_map=*/false );
+
+    trace_ptr->set_collective_channel_to_root_seq( updt_root_map );
+    trace_ptr->set_collective_channel_to_sender_seq( updt_sender_map );
     trace_ptr->disambiguate_trace_collective_maps();
-    // vid map might not be required. Update only if conflict caused in future. Also update trace function: disambiguate_trace_collective_maps to update the vid map
-    /*for(auto& kvp1: vid_to_channel){
-      std::vector<int> global_ranks = global_ranks_map.at(kvp1.second);
-      kvp1.first.set_global_ranks(global_ranks);
-    }*/
   }
 }
 
