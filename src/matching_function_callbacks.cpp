@@ -304,10 +304,23 @@ int cb_MPI_Test(const dumpi_test *prm,
   
   // Otherwise, complete the request
   long request_id = event.request;
+
+  // Nonblocking collective completion (e.g. MPI_Iallreduce): comm/root/type
+  // were captured from DUMPI at the call site, so the completion is handled
+  // without Pluto data. Unlike MPI_Wait, Pluto's MPI_Test wrapper DOES emit
+  // an entry for a successful test of a request it never tracked (raw request
+  // address as the id, msg_type 0, call_type 2), so that entry must be
+  // consumed here to keep the Pluto stream aligned for later p2p completions.
+  if ( trace->is_collective_request( request_id ) ) {
+    trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
+    trace->complete_collective_request( request_id, wall_time, papi ? perf : nullptr );
+    return 0;
+  }
+
   trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
   if(call_type != 2 && call_type != 6){
       std::cerr << "Misaligned Pluto Output in Test " << call_type << " " << event_num << std::endl;
-  } 
+  }
 
   if(call_type == 6){   // Null Request type
     return 0;
@@ -360,10 +373,19 @@ int cb_MPI_Testany(const dumpi_testany *prm,
   // Otherwise, complete the request
   long request_id = *( event.requests + event.index );
 
+  // Nonblocking collective completion: handled from DUMPI data. Pluto's
+  // MPI_Testany wrapper emits one entry for the completed request even if it
+  // never tracked it, so consume that entry to keep the stream aligned.
+  if ( trace->is_collective_request( request_id ) ) {
+    trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
+    trace->complete_collective_request( request_id, wall_time, papi ? perf : nullptr );
+    return 0;
+  }
+
   trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
   if(call_type != 2){
     std::cerr << "Misaligned Pluto Output in Testany " << call_type << " " << event_num << std::endl;
-  } 
+  }
   else{
     std::cout << "JACK_ it is aligned for testany" << std::endl;
   } 
@@ -432,10 +454,21 @@ int cb_MPI_Testsome(const dumpi_testsome *prm,
     auto search = request_indices.find( i );
     if (search != request_indices.end()) {
 
+      // Nonblocking collective completion: handled from DUMPI data. Pluto's
+      // MPI_Testsome wrapper emits one entry per completed request even if it
+      // never tracked it, so consume that entry to keep the stream aligned.
+      if ( trace->is_collective_request( request_id ) ) {
+        trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
+        trace->complete_collective_request( request_id, wall_time, papi ? perf : nullptr );
+        statuses_ptr++;
+        requests_ptr++;
+        continue;
+      }
+
       trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
       if(call_type != 2 && call_type != 6 && call_type != 0){
         std::cerr << "Misaligned Pluto Output in Testsome " << call_type << " " << event_num << std::endl;
-      } 
+      }
       if (call_type==2)
       trace->complete_request( req_addr, 
                                statuses_ptr, 
@@ -490,11 +523,23 @@ int cb_MPI_Testall(const dumpi_testall *prm,
   dumpi_status* statuses_ptr = event.statuses;
   for ( int i=0; i<n_requests; ++i ) {
     long request_id = *requests_ptr;
-    
+
+    // Nonblocking collective completion: handled from DUMPI data. Pluto's
+    // MPI_Testall wrapper emits one entry per request (all complete when
+    // flag != 0) even if it never tracked it, so consume that entry to keep
+    // the stream aligned.
+    if ( trace->is_collective_request( request_id ) ) {
+      trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
+      trace->complete_collective_request( request_id, wall_time, papi ? perf : nullptr );
+      statuses_ptr++;
+      requests_ptr++;
+      continue;
+    }
+
     trace->get_pluto_entry(msg_type, req_addr, call_type, event_num);
     if(call_type != 2){
       std::cerr << "Misaligned Pluto Output in Testall " << call_type << " " << event_num << std::endl;
-    } 
+    }
   else{
     std::cout << "JACK_ it is aligned for testall" << std::endl;
   } 

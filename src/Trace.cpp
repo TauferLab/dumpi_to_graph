@@ -720,8 +720,11 @@ bool Trace::is_collective_request( long request_id ) const
 // Complete a nonblocking collective when its request is matched by an
 // MPI_Wait/Waitall/Test. The collective vertex is minted here (at completion)
 // and fed into the same collective-channel maps as a blocking collective, so
-// make_collective_edges draws identical inter-process edges. Pluto is NOT
-// consulted for these completions (the caller skips get_pluto_entry).
+// make_collective_edges draws identical inter-process edges. Pluto data is
+// not used for these completions, but stream handling differs by caller:
+// Pluto's MPI_Wait wrapper emits nothing for untracked requests (caller skips
+// get_pluto_entry), while its MPI_Test wrapper emits an entry on any
+// successful test (caller consumes and discards one entry).
 void Trace::complete_collective_request( long request_id,
                                          const dumpi_time wall_time,
                                          const dumpi_perfinfo *ctrs )
