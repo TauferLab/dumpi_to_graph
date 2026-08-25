@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <climits>
 #include <cstdio>
+#include <malloc.h> // malloc_trim
 #include <cinttypes>
 #include <unordered_map>
 #include <vector>
@@ -1033,6 +1034,29 @@ void EventGraph::apply_scalar_logical_clock()
 
 
 
+void EventGraph::free_trace_data()
+{
+  // The Trace and CSMPI_Trace objects and the channel maps are last used in
+  // apply_scalar_logical_clock; everything merge() sends to the root lives in
+  // the per-vertex maps and edge lists, which are kept.
+  for ( auto kvp : this->rank_to_trace ) {
+    delete kvp.second;
+  }
+  std::unordered_map<int,Trace*>().swap( this->rank_to_trace );
+  for ( auto kvp : this->rank_to_csmpi_trace ) {
+    delete kvp.second;
+  }
+  std::unordered_map<int,CSMPI_Trace*>().swap( this->rank_to_csmpi_trace );
+  channel_map().swap( this->channel_to_send_seq );
+  channel_map().swap( this->channel_to_recv_seq );
+  std::unordered_map<size_t,Channel>().swap( this->vertex_id_to_channel );
+  std::unordered_map<size_t,CollectiveChannel>().swap( this->vid_to_collective_channel );
+  collective_channel_map().swap( this->collective_channel_to_root_seq );
+  std::unordered_map<CollectiveChannel, std::vector<std::vector<size_t>>, CollectiveChannelHash>().swap( this->collective_channel_to_sender_seq );
+  // Return freed heap pages to the OS so other ranks can use them
+  malloc_trim( 0 );
+}
+
 void EventGraph::merge()
 {
   boost::mpi::communicator world;
@@ -1051,18 +1075,33 @@ void EventGraph::merge()
   int message_order_edge_tag = 17;
   int program_order_edge_tag = 36;
 
-  // Accumulate all graph data into these
-  std::vector<size_t> vertex_ids = this->vertex_ids; 
-  std::unordered_map<size_t,size_t> vertex_id_to_lts = this->logical_timestamps;
-  std::unordered_map<size_t,uint8_t> vertex_id_to_event_type = this->vertex_id_to_event_type;
-  std::unordered_map<size_t,double> vertex_id_to_wall_time = this->vertex_id_to_wall_time;
-  std::unordered_map<size_t,int> vertex_id_to_pid = this->vertex_id_to_pid;
-  std::unordered_map<size_t,std::string> vertex_id_to_papi = this->vertex_id_to_papi;
-  std::unordered_map<size_t,std::string> vertex_id_to_callstack = this->vertex_id_to_callstack;
-  std::unordered_map<size_t,std::pair<std::string,size_t>> vertex_id_to_fn_call = this->vertex_id_to_fn_call;
+  // Accumulate all graph data into these. Only the root rank reads them, so
+  // only the root populates them — and by moving rather than copying, since
+  // the members are not used again after merge()
+  std::vector<size_t> vertex_ids;
+  std::unordered_map<size_t,size_t> vertex_id_to_lts;
+  std::unordered_map<size_t,uint8_t> vertex_id_to_event_type;
+  std::unordered_map<size_t,double> vertex_id_to_wall_time;
+  std::unordered_map<size_t,int> vertex_id_to_pid;
+  std::unordered_map<size_t,std::string> vertex_id_to_papi;
+  std::unordered_map<size_t,std::string> vertex_id_to_callstack;
+  std::unordered_map<size_t,std::pair<std::string,size_t>> vertex_id_to_fn_call;
 
-  std::vector<std::pair<size_t,size_t>> message_order_edges = this->message_order_edges;
-  std::vector<std::pair<size_t,size_t>> program_order_edges = this->program_order_edges;
+  std::vector<std::pair<size_t,size_t>> message_order_edges;
+  std::vector<std::pair<size_t,size_t>> program_order_edges;
+
+  if ( rank == 0 ) {
+    vertex_ids = std::move( this->vertex_ids );
+    vertex_id_to_lts = std::move( this->logical_timestamps );
+    vertex_id_to_event_type = std::move( this->vertex_id_to_event_type );
+    vertex_id_to_wall_time = std::move( this->vertex_id_to_wall_time );
+    vertex_id_to_pid = std::move( this->vertex_id_to_pid );
+    vertex_id_to_papi = std::move( this->vertex_id_to_papi );
+    vertex_id_to_callstack = std::move( this->vertex_id_to_callstack );
+    vertex_id_to_fn_call = std::move( this->vertex_id_to_fn_call );
+    message_order_edges = std::move( this->message_order_edges );
+    program_order_edges = std::move( this->program_order_edges );
+  }
 
   // Root posts receives for vertices, vertex labels, and edges 
   // All other dumpi_to_graph processes send their partial view of the graph
@@ -1143,23 +1182,36 @@ void EventGraph::merge()
     
   }
   else {
-    // Send vertex IDs
+    // Send vertex IDs, vertex label maps, and edges to the root. Each
+    // container is dead after its (blocking) send completes, so free it
+    // immediately to keep this rank's footprint low while the root
+    // accumulates the full graph
     world.send( 0, vertex_ids_tag, this->vertex_ids );
-    // Send vertex label maps
+    std::vector<size_t>().swap( this->vertex_ids );
     world.send( 0, lts_map_tag, this->logical_timestamps );
+    std::unordered_map<size_t,size_t>().swap( this->logical_timestamps );
     world.send( 0, event_type_map_tag, this->vertex_id_to_event_type );
+    std::unordered_map<size_t,uint8_t>().swap( this->vertex_id_to_event_type );
     world.send( 0, wall_time_map_tag, this->vertex_id_to_wall_time );
+    std::unordered_map<size_t,double>().swap( this->vertex_id_to_wall_time );
     world.send( 0, pid_map_tag, this->vertex_id_to_pid );
+    std::unordered_map<size_t,int>().swap( this->vertex_id_to_pid );
     world.send( 0, fn_call_map_tag, this->vertex_id_to_fn_call );
+    std::unordered_map<size_t,std::pair<std::string,size_t>>().swap( this->vertex_id_to_fn_call );
     if ( this->config.has_csmpi() ) {
       world.send( 0, callstack_map_tag, this->vertex_id_to_callstack );
+      std::unordered_map<size_t,std::string>().swap( this->vertex_id_to_callstack );
     }
     if ( this->config.get_papi_flag() ) {
       world.send(0, papi_map_tag, this->vertex_id_to_papi );
+      std::unordered_map<size_t,std::string>().swap( this->vertex_id_to_papi );
     }
-    // Send edges
     world.send( 0, message_order_edge_tag, this->message_order_edges );
+    std::vector<std::pair<size_t,size_t>>().swap( this->message_order_edges );
     world.send( 0, program_order_edge_tag, this->program_order_edges );
+    std::vector<std::pair<size_t,size_t>>().swap( this->program_order_edges );
+    // Return freed heap pages to the OS so the root can use them
+    malloc_trim( 0 );
   }
 
   // Root constructs the igraph representation

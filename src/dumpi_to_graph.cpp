@@ -197,7 +197,17 @@ int main(int argc, char** argv)
               << " finished applying logical timestamps" << std::endl;
 #endif
     mpi_rc = MPI_Barrier( MPI_COMM_WORLD );
-    
+
+    // The trace objects and channel maps are not needed past this point;
+    // free them so merge() has the memory. Note: this also deletes the
+    // Trace/CSMPI_Trace objects that rank_to_trace/rank_to_csmpi_trace in
+    // this scope point to, so those maps must not be dereferenced below
+    event_graph.free_trace_data();
+#ifdef REPORT_PROGRESS
+    std::cout << "Rank: " << dumpi_to_graph_rank
+              << " freed trace data" << std::endl;
+#endif
+
     // Merge all partial views of the event graph into a single igraph graph,
     // set vertex and edge attributes
     event_graph.merge();

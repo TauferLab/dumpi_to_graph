@@ -40,6 +40,11 @@ public:
   // Function to merge the partial edge lists into a single igraph object
   void merge();
 
+  // Frees the Trace/CSMPI_Trace objects and channel maps once they are no
+  // longer needed (their last use is in apply_scalar_logical_clock). Must not
+  // be called before apply_scalar_logical_clock has completed.
+  void free_trace_data();
+
   // Function to write the igraph object to file
   void write() const;
 
