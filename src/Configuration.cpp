@@ -1,6 +1,8 @@
 #include <vector>
 #include <set>
 #include <cassert>
+#include <sstream>
+#include <stdexcept>
 
 // Used to parse the configuration file 
 #include "external/nlohmann/json.hpp"
@@ -107,6 +109,12 @@ Configuration parse_config_file( std::string config_file_path )
                             (bool)config_json["condense_unmatched_tests"],
                             (bool)config_json["condense_matched_tests"],
                             perf_counter );
+
+  // Optional: how to write the finished graph. Defaults to the original
+  // single-file GraphML written by rank 0.
+  if ( config_json.find( "output_format" ) != config_json.end() ) {
+    config.set_output_format( config_json["output_format"].get<std::string>() );
+  }
   return config; 
 }
 
@@ -194,7 +202,34 @@ Configuration& Configuration::operator=(const Configuration& rhs)
   this->trace_rank_to_owning_rank = rhs.get_trace_rank_to_owning_rank();
   this->perf_counter = rhs.get_papi_flag();
   this->csmpi_flag = rhs.has_csmpi();
+  this->output_format = rhs.get_output_format();
   return *this; 
+}
+
+std::string Configuration::get_output_format() const
+{
+  return this->output_format;
+}
+
+void Configuration::set_output_format( const std::string& output_format )
+{
+  if ( output_format != "graphml" && output_format != "jsonl" ) {
+    std::stringstream ss;
+    ss << "Unknown output_format: \"" << output_format
+       << "\" (expected \"graphml\" or \"jsonl\")";
+    throw std::runtime_error( ss.str() );
+  }
+  this->output_format = output_format;
+}
+
+bool Configuration::writes_jsonl() const
+{
+  return this->output_format == "jsonl";
+}
+
+bool Configuration::writes_graphml() const
+{
+  return this->output_format == "graphml";
 }
 
 bool Configuration::has_csmpi() const 

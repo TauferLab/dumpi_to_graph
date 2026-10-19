@@ -1,0 +1,72 @@
+{
+    "mpi_functions": [
+        "MPI_Recv",
+        "MPI_Send",
+        "MPI_Isend",
+        "MPI_Irecv",
+        "MPI_Ireduce",
+        "MPI_Iallreduce",
+        "MPI_Ibcast",
+        "MPI_Igather",
+        "MPI_Igatherv",
+        "MPI_Iscatter",
+        "MPI_Iscatterv",
+        "MPI_Ialltoall",
+        "MPI_Ialltoallv",
+        "MPI_Wait",
+        "MPI_Waitany",
+        "MPI_Waitsome",
+        "MPI_Waitall",
+        "MPI_Test",
+        "MPI_Testany",
+        "MPI_Testsome",
+        "MPI_Testall",
+        "MPI_Barrier",
+        "MPI_Bcast",
+        "MPI_Reduce",
+        "MPI_Allreduce",
+        "MPI_Alltoall",
+        "MPI_Alltoallv",
+        "MPI_Gather",
+        "MPI_Gatherv",
+        "MPI_Scatter",
+        "MPI_Scatterv",
+        "MPI_Cancel",
+        "MPI_Request_free",
+        "MPI_Comm_rank",
+        "MPI_Comm_size",
+        "MPI_Comm_split",
+        "MPI_Comm_create"
+    ],
+    "barrier_functions": [
+        "MPI_Barrier",
+        "MPI_Allreduce",
+        "MPI_Reduce",
+        "MPI_Bcast",
+        "MPI_Alltoall",
+        "MPI_Alltoallv",
+        "MPI_Gather",
+        "MPI_Gatherv",
+        "MPI_Scatter",
+        "MPI_Scatterv"
+    ],
+    "happens_before_orders": [
+        "program",
+        "message"
+    ],
+    "vertex_labels": [
+        "type",
+        "lamport_time",
+        "wall_time",
+        "callstack"
+    ],
+    "edge_labels": [
+        "tag",
+        "lamport_time_diff",
+        "wall_time_diff"
+    ],
+    "condense_matched_tests": false,
+    "represent_unmatched_tests": false,
+    "condense_unmatched_tests": false,
+    "output_format": "jsonl"
+}

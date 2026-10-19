@@ -208,12 +208,19 @@ int main(int argc, char** argv)
               << " freed trace data" << std::endl;
 #endif
 
-    // Merge all partial views of the event graph into a single igraph graph,
-    // set vertex and edge attributes
-    event_graph.merge();
+    if ( config.writes_jsonl() ) {
+      // Distributed path: each rank writes its partial graph as JSON Lines
+      // partitions; nothing is gathered on rank 0. Assemble the GraphML file
+      // afterwards with spark/jsonl_to_graphml.py
+      event_graph.write_jsonl();
+    } else {
+      // Merge all partial views of the event graph into a single igraph graph,
+      // set vertex and edge attributes
+      event_graph.merge();
 
-    // Write out the event graph to disk
-    event_graph.write();
+      // Write out the event graph to disk
+      event_graph.write();
+    }
 
   } // End of loop over trace directories
 

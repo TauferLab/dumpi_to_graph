@@ -62,6 +62,19 @@ public:
   bool get_condense_matched_tests_flag() const;
   bool has_csmpi() const;
   bool get_papi_flag() const; 
+
+  // How the finished event graph is written out (see "output_format" in the
+  // JSON configuration file):
+  //   "graphml" (default): every rank sends its partial graph to rank 0, which
+  //                        builds one igraph object and writes event_graph.graphml
+  //   "jsonl":             every rank writes its own partial graph as JSON Lines
+  //                        partitions under <trace_dir>/event_graph_jsonl/; nothing
+  //                        is gathered on one rank. spark/jsonl_to_graphml.py then
+  //                        assembles the identical event_graph.graphml with Spark.
+  std::string get_output_format() const;
+  void set_output_format( const std::string& output_format );
+  bool writes_jsonl() const;
+  bool writes_graphml() const;
   // Accessors for querying trace file to dumpi_to_graph assignment 
   std::unordered_map<std::string, std::unordered_map<int,std::vector<int>>> get_dir_to_trace_rank_assignments() const;
   std::unordered_map<std::string, std::unordered_map<int,std::vector<std::string>>> get_dir_to_trace_file_assignments() const;
@@ -101,6 +114,7 @@ public:
         << config.condense_unmatched_tests << std::endl;
     out << "\t- Condense matched tests? " 
         << config.condense_matched_tests << std::endl;
+    out << "\t- Output format: " << config.output_format << std::endl;
     out << "Trace Directories:" << std::endl;
     for (auto trace_dir : config.trace_dirs) {
       out << "\t- " << trace_dir << std::endl;
@@ -153,6 +167,9 @@ private:
   
   // A flag to check for use of PAPI counter in vertex labelling. 
   bool perf_counter = false; 
+
+  // "graphml" (default) or "jsonl"; see get_output_format()
+  std::string output_format = "graphml";
   // Boost serialization stuff so that the root process can read in the config
   // and broadcast it to everyone else. 
   friend class boost::serialization::access; 
@@ -173,6 +190,7 @@ private:
     ar & trace_rank_to_owning_rank;
     ar & csmpi_flag;
     ar & perf_counter;
+    ar & output_format;
   }
 
 };

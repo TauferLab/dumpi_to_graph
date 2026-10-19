@@ -9,7 +9,7 @@ add_executable(dumpi_to_graph)
 
 target_sources(dumpi_to_graph PRIVATE src/blocking_collective_callbacks.cpp
 src/Channel.cpp src/CommunicatorManager.cpp src/CSMPI_Callstack.cpp
-src/Debug.cpp src/EventGraph.cpp src/Glob.cpp
+src/Debug.cpp src/EventGraph.cpp src/EventGraphJsonl.cpp src/Glob.cpp
 src/matching_function_callbacks.cpp src/Request.cpp src/Trace.cpp
 src/Utilities.cpp src/blocking_p2p_callbacks.cpp
 src/communicator_management_callbacks.cpp src/Configuration.cpp

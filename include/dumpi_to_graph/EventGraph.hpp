@@ -48,6 +48,17 @@ public:
   // Function to write the igraph object to file
   void write() const;
 
+  // Distributed alternative to merge() + write(). Every dumpi_to_graph rank
+  // writes its own partial view of the graph as JSON Lines partitions:
+  //   <trace_dir>/event_graph_jsonl/vertices/part-NNNNN.jsonl
+  //   <trace_dir>/event_graph_jsonl/edges/part-NNNNN.jsonl
+  // and rank 0 writes a small _metadata.json index describing the partitions.
+  // Nothing is gathered on a single rank, so peak memory per rank stays at the
+  // size of that rank's own partial graph. spark/jsonl_to_graphml.py turns the
+  // partitions into an event_graph.graphml identical to what write() produces.
+  // Frees the per-vertex maps and edge lists as it goes.
+  void write_jsonl();
+
   // Convenience functions for printing state
   void report_program_order_edges() const;
   void report_message_order_edges() const;
